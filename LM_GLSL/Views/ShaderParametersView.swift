@@ -59,11 +59,11 @@ struct ShaderParametersView: View {
                     VStack(spacing: 0) {
                         // Top-left: Preview
                         shaderPreviewPanel
-                            .frame(height: geometry.size.height * 0.55)
+                            .frame(height: geometry.size.height * 0.62)
                         
-                        // Bottom-left: Control panels
+                        // Bottom-left: Control panels (one row of buttons)
                         controlPanelsSection
-                            .frame(height: geometry.size.height * 0.45)
+                            .frame(height: geometry.size.height * 0.38)
                     }
                     .frame(width: geometry.size.width * 0.7)
                     
@@ -373,11 +373,17 @@ struct ShaderParametersView: View {
             Group {
                 switch selectedControlPanel {
                 case .grid:
-                    ButtonGridPanel(parameters: $parametersVM.parameters)
+                    ButtonGridPanel(parameters: $parametersVM.parameters) { name, value in
+                        automationManager.recordParameterChange(name: name, value: value)
+                    }
                 case .pad:
-                    XYPadPanel(parameters: $parametersVM.parameters)
+                    XYPadPanel(parameters: $parametersVM.parameters) { name, value in
+                        automationManager.recordParameterChange(name: name, value: value)
+                    }
                 case .knobs:
-                    KnobsPanel(parameters: $parametersVM.parameters)
+                    KnobsPanel(parameters: $parametersVM.parameters) { name, value in
+                        automationManager.recordParameterChange(name: name, value: value)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -437,7 +443,7 @@ struct ShaderParametersView: View {
                                 .scaleEffect(0.8)
                                 .tint(.white)
                         } else {
-                            Image(systemName: aiService.hasConversationContext ? "arrow.triangle.2.circlepath" : "sparkles")
+                            Image(systemName: "arrow.triangle.2.circlepath")
                         }
                         Text(generateButtonText)
                     }
@@ -448,16 +454,6 @@ struct ShaderParametersView: View {
                 }
                 .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
                 .opacity((aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey)) ? 0.5 : 1)
-                
-                if aiService.hasConversationContext {
-                    Button {
-                        aiService.clearConversation()
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .padding(10)
-                            .background(Color(white: 0.2))
-                    }
-                }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -481,12 +477,12 @@ struct ShaderParametersView: View {
     }
     
     private var promptPlaceholder: String {
-        "Modyfikuj: 'wolniej', 'zmień kolor na niebieski', 'dodaj slider'..."
+        "Modify: 'slower', 'change color to blue', 'add slider'..."
     }
     
     private var generateButtonText: String {
-        if aiService.isGenerating { return "Generuję..." }
-        return "Modyfikuj"
+        if aiService.isGenerating { return "Generating..." }
+        return "Modify"
     }
     
     // MARK: - Actions
@@ -568,6 +564,7 @@ struct StyledSliderRow: View {
 
 struct ButtonGridPanel: View {
     @Binding var parameters: [ShaderParameter]
+    var onValueChanged: ((String, Float) -> Void)? = nil
     
     let columns = [
         GridItem(.flexible()),
@@ -598,7 +595,9 @@ struct ButtonGridPanel: View {
                                 isActive: parameters[paramIndex].currentValue > 0.5,
                                 color: gridColor(for: index)
                             ) {
-                                parameters[paramIndex].currentValue = parameters[paramIndex].currentValue > 0.5 ? 0.0 : 1.0
+                                let newValue: Float = parameters[paramIndex].currentValue > 0.5 ? 0.0 : 1.0
+                                parameters[paramIndex].currentValue = newValue
+                                onValueChanged?(param.name, newValue)
                             }
                         }
                     }
@@ -642,6 +641,7 @@ struct GridButton: View {
 
 struct XYPadPanel: View {
     @Binding var parameters: [ShaderParameter]
+    var onValueChanged: ((String, Float) -> Void)? = nil
     
     @State private var padPosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
     
@@ -696,11 +696,15 @@ struct XYPadPanel: View {
         let sliderParams = parameters.filter { $0.type == .slider }
         if sliderParams.count >= 1,
            let index = parameters.firstIndex(where: { $0.id == sliderParams[0].id }) {
-            parameters[index].currentValue = parameters[index].minValue + Float(padPosition.x) * (parameters[index].maxValue - parameters[index].minValue)
+            let newValue = parameters[index].minValue + Float(padPosition.x) * (parameters[index].maxValue - parameters[index].minValue)
+            parameters[index].currentValue = newValue
+            onValueChanged?(sliderParams[0].name, newValue)
         }
         if sliderParams.count >= 2,
            let index = parameters.firstIndex(where: { $0.id == sliderParams[1].id }) {
-            parameters[index].currentValue = parameters[index].minValue + Float(1 - padPosition.y) * (parameters[index].maxValue - parameters[index].minValue)
+            let newValue = parameters[index].minValue + Float(1 - padPosition.y) * (parameters[index].maxValue - parameters[index].minValue)
+            parameters[index].currentValue = newValue
+            onValueChanged?(sliderParams[1].name, newValue)
         }
     }
 }
@@ -709,6 +713,7 @@ struct XYPadPanel: View {
 
 struct KnobsPanel: View {
     @Binding var parameters: [ShaderParameter]
+    var onValueChanged: ((String, Float) -> Void)? = nil
     
     let columns = [
         GridItem(.flexible()),
@@ -741,8 +746,10 @@ struct KnobsPanel: View {
                                         (parameters[paramIndex].maxValue - parameters[paramIndex].minValue)
                                     },
                                     set: { newValue in
-                                        parameters[paramIndex].currentValue = parameters[paramIndex].minValue + 
+                                        let actualValue = parameters[paramIndex].minValue + 
                                             newValue * (parameters[paramIndex].maxValue - parameters[paramIndex].minValue)
+                                        parameters[paramIndex].currentValue = actualValue
+                                        onValueChanged?(param.name, actualValue)
                                     }
                                 ),
                                 color: knobColor(for: index)
