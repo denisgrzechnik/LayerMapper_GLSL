@@ -78,17 +78,46 @@ class AIShaderService: ObservableObject {
     
     Available functions: sin, cos, tan, abs, floor, fract, mod, pow, sqrt, length, distance, dot, cross, normalize, mix, smoothstep, clamp, min, max
     
+    PARAMETER SLIDERS:
+    When user asks to add a slider/parameter for controlling a numeric value, use this format at the TOP of the shader:
+    // @param variableName "Display Name" range(min, max) default(value)
+    
+    TOGGLE BUTTONS:
+    When user asks for a toggle/switch/on-off control, use this format:
+    // @toggle variableName "Display Name" default(true/false)
+    
+    Example parameters:
+    // @param speed "Speed" range(0.0, 5.0) default(1.0)
+    // @param intensity "Intensity" range(0.0, 2.0) default(1.0)
+    // @toggle invert "Invert Colors" default(false)
+    // @toggle animate "Animation" default(true)
+    
+    Using toggle in code (it's a float: 0.0 = off, 1.0 = on):
+    float3 col = mix(originalColor, invertedColor, invert);
+    // or with condition:
+    if (animate > 0.5) { /* animated code */ }
+    
     Rules:
     1. Return ONLY the shader code body, nothing else
     2. Must end with: return float4(col, 1.0); where col is float3
     3. Use Metal Shading Language syntax (float2, float3, float4)
     4. Keep code concise and efficient
-    5. No comments unless essential
-    6. No markdown formatting, no code blocks
-    7. When user asks to modify the shader, keep the existing logic and only change what they ask for
+    5. No markdown formatting, no code blocks
+    6. When user asks to modify the shader, keep the existing logic and only change what they ask for
+    7. When user asks for slider - use @param, for toggle/switch - use @toggle
+    8. Parameter names should be short, lowercase, no spaces (e.g., speed, scale, invert)
+    9. Display names can have spaces and be descriptive (e.g., "Zoom Speed", "Invert Colors")
     
-    Example output for "blue gradient":
-    float3 col = mix(float3(0.0, 0.0, 0.2), float3(0.0, 0.5, 1.0), uv.y);
+    Example with both slider and toggle:
+    // @param pulseSpeed "Pulse Speed" range(0.1, 5.0) default(1.0)
+    // @toggle showRing "Show Ring" default(true)
+    float2 p = uv * 2.0 - 1.0;
+    float d = length(p);
+    float pulse = sin(iTime * pulseSpeed) * 0.5 + 0.5;
+    float circle = smoothstep(0.5 + pulse * 0.2, 0.48 + pulse * 0.2, d);
+    float ring = smoothstep(0.48, 0.46, d) * smoothstep(0.3, 0.32, d);
+    float shape = mix(circle, ring, showRing);
+    float3 col = float3(shape) * float3(0.2, 0.6, 1.0);
     return float4(col, 1.0);
     """
     

@@ -338,6 +338,7 @@ struct MetalShaderView: UIViewRepresentable {
     let shaderCode: String
     @Binding var isPlaying: Bool
     @Binding var currentTime: Double
+    var parameters: [ShaderParameter] = []
     
     func makeUIView(context: Context) -> MTKView {
         let mtkView = MTKView()
@@ -358,6 +359,7 @@ struct MetalShaderView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         uiView.isPaused = !isPlaying
         context.coordinator.updateShader(shaderCode)
+        context.coordinator.updateParameters(parameters)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -371,6 +373,8 @@ struct MetalShaderView: UIViewRepresentable {
         var pipelineState: MTLRenderPipelineState?
         var startTime: Date = Date()
         var currentShaderCode: String = ""
+        var currentParameters: [ShaderParameter] = []
+        var shaderExpectsParams: Bool = false  // Track if compiled shader expects params
         
         init(_ parent: MetalShaderView) {
             self.parent = parent
@@ -388,6 +392,10 @@ struct MetalShaderView: UIViewRepresentable {
             guard shaderCode != currentShaderCode else { return }
             currentShaderCode = shaderCode
             createPipelineState(shaderCode: shaderCode)
+        }
+        
+        func updateParameters(_ parameters: [ShaderParameter]) {
+            currentParameters = parameters
         }
         
         func createPipelineState(shaderCode: String) {
@@ -462,6 +470,49 @@ struct MetalShaderView: UIViewRepresentable {
         }
         
         func buildMetalShader(from fragmentBody: String) -> String {
+            // Parse parameters from code
+            let parameters = ShaderParameterParser.parseParameters(from: fragmentBody)
+            
+            // Track if this shader expects parameters
+            shaderExpectsParams = !parameters.isEmpty
+            
+            // Build parameter declarations for fragment shader
+            var paramDeclarations = ""
+            var paramBufferArg = ""
+            
+            if !parameters.isEmpty {
+                // Create struct for parameters
+                paramDeclarations = """
+                
+                struct ShaderParams {
+                \(parameters.map { "    float \($0.name);" }.joined(separator: "\n"))
+                };
+                
+                """
+                paramBufferArg = ", constant ShaderParams &params [[buffer(1)]]"
+            }
+            
+            // Strip @param and @toggle comments from the body for cleaner code
+            let cleanBody = fragmentBody
+                .components(separatedBy: "\n")
+                .filter { !$0.contains("@param") && !$0.contains("@toggle") }
+                .joined(separator: "\n")
+            
+            // Replace parameter names with params.name
+            var processedBody = cleanBody
+            for param in parameters {
+                // Replace standalone parameter names (not part of other words)
+                let pattern = "\\b\(param.name)\\b"
+                if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                    processedBody = regex.stringByReplacingMatches(
+                        in: processedBody,
+                        options: [],
+                        range: NSRange(processedBody.startIndex..., in: processedBody),
+                        withTemplate: "params.\(param.name)"
+                    )
+                }
+            }
+            
             return """
             #include <metal_stdlib>
             using namespace metal;
@@ -470,7 +521,7 @@ struct MetalShaderView: UIViewRepresentable {
                 float4 position [[position]];
                 float2 uv;
             };
-            
+            \(paramDeclarations)
             vertex VertexOut vertexShader(uint vertexID [[vertex_id]]) {
                 float2 positions[6] = {
                     float2(-1, -1), float2(1, -1), float2(-1, 1),
@@ -484,9 +535,9 @@ struct MetalShaderView: UIViewRepresentable {
                 return out;
             }
             
-            fragment float4 fragmentShader(VertexOut in [[stage_in]], constant float &iTime [[buffer(0)]]) {
+            fragment float4 fragmentShader(VertexOut in [[stage_in]], constant float &iTime [[buffer(0)]]\(paramBufferArg)) {
                 float2 uv = in.uv;
-                \(fragmentBody)
+                \(processedBody)
             }
             """
         }
@@ -511,6 +562,29 @@ struct MetalShaderView: UIViewRepresentable {
             
             encoder.setRenderPipelineState(pipelineState)
             encoder.setFragmentBytes(&time, length: MemoryLayout<Float>.size, index: 0)
+            
+            // Pass parameters to shader only if shader expects them
+            if shaderExpectsParams {
+                // Get parameters from code to ensure correct order
+                let codeParams = ShaderParameterParser.parseParameters(from: currentShaderCode)
+                
+                // Build values array matching the order in code
+                var paramValues: [Float] = []
+                for codeParam in codeParams {
+                    // Find matching parameter from UI (by name)
+                    if let uiParam = currentParameters.first(where: { $0.name == codeParam.name }) {
+                        paramValues.append(uiParam.currentValue)
+                    } else {
+                        // Use default value if not found in UI
+                        paramValues.append(codeParam.defaultValue)
+                    }
+                }
+                
+                if !paramValues.isEmpty {
+                    encoder.setFragmentBytes(&paramValues, length: MemoryLayout<Float>.size * paramValues.count, index: 1)
+                }
+            }
+            
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
             encoder.endEncoding()
             

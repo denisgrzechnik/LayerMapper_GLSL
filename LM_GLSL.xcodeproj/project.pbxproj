@@ -26,6 +26,8 @@
 		0A000021291F0001000A0017 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A000022291F0001000A0017 /* Color+Hex.swift */; };
 		0A000023291F0001000A0018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A000024291F0001000A0018 /* Assets.xcassets */; };
 		58C556552F04FF4B0094CB27 /* AIShaderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556542F04FF4B0094CB27 /* AIShaderService.swift */; };
+		58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */; };
+		58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556582F050E200094CB27 /* ShaderParameter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +51,8 @@
 		0A000022291F0001000A0017 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		0A000024291F0001000A0018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		58C556542F04FF4B0094CB27 /* AIShaderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIShaderService.swift; sourceTree = "<group>"; };
+		58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Parametric.swift; sourceTree = "<group>"; };
+		58C556582F050E200094CB27 /* ShaderParameter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderParameter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +103,7 @@
 		0A0000FA291F0001000A0001 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				58C556582F050E200094CB27 /* ShaderParameter.swift */,
 				58C556542F04FF4B0094CB27 /* AIShaderService.swift */,
 				0A000010291F0001000A0008 /* ShaderCategory.swift */,
 				0A000012291F0001000A0009 /* ShaderEntity.swift */,
@@ -116,6 +121,7 @@
 				0A00001C291F0001000A0014 /* ShaderCodes_Part3.swift */,
 				0A00001E291F0001000A0015 /* ShaderCodes_Part4.swift */,
 				0A000020291F0001000A0016 /* ShaderCodes_Part5.swift */,
+				58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */,
 			);
 			path = Shaders;
 			sourceTree = "<group>";
@@ -207,6 +213,7 @@
 			files = (
 				0A000001291F0001000A0001 /* LM_GLSLApp.swift in Sources */,
 				0A000003291F0001000A0002 /* ContentView.swift in Sources */,
+				58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */,
 				58C556552F04FF4B0094CB27 /* AIShaderService.swift in Sources */,
 				0A000005291F0001000A0003 /* ShaderPreviewView.swift in Sources */,
 				0A000007291F0001000A0004 /* ShaderListView.swift in Sources */,
@@ -216,6 +223,7 @@
 				0A00000F291F0001000A0008 /* ShaderCategory.swift in Sources */,
 				0A000011291F0001000A0009 /* ShaderEntity.swift in Sources */,
 				0A000013291F0001000A0010 /* ShaderDataManager.swift in Sources */,
+				58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */,
 				0A000015291F0001000A0011 /* BuiltInShaderLoader.swift in Sources */,
 				0A000017291F0001000A0012 /* ShaderCodes_Part1.swift in Sources */,
 				0A000019291F0001000A0013 /* ShaderCodes_Part2.swift in Sources */,

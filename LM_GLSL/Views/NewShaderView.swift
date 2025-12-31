@@ -11,6 +11,7 @@ import SwiftData
 struct NewShaderView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var aiService = AIShaderService.shared
+    @StateObject private var parametersVM = ShaderParametersViewModel()
     
     let onCreate: (ShaderEntity) -> Void
     
@@ -21,7 +22,7 @@ struct NewShaderView: View {
     
     // AI Generation
     @State private var aiPrompt: String = ""
-    @State private var selectedProvider: AIProvider = .openAI
+    @State private var selectedProvider: AIProvider = .groq
     @State private var showAPIKeySheet = false
     
     static let defaultShaderCode = """
@@ -38,11 +39,23 @@ struct NewShaderView: View {
                     MetalShaderView(
                         shaderCode: code,
                         isPlaying: .constant(true),
-                        currentTime: .constant(0)
+                        currentTime: .constant(0),
+                        parameters: parametersVM.parameters
                     )
                     .frame(height: 200)
                     .padding(.horizontal, 10)
                     .padding(.top, 10)
+                    
+                    // Parameter controls (sliders and toggles)
+                    if !parametersVM.parameters.isEmpty {
+                        VStack(spacing: 1) {
+                            ForEach($parametersVM.parameters) { $param in
+                                ParameterControlRow(parameter: $param)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.top, 8)
+                    }
                     
                     // Form sections
                     VStack(spacing: 16) {
@@ -193,11 +206,32 @@ struct NewShaderView: View {
                         }
                         
                         // Help section
-                        FormSection(title: "Available Variables", icon: "questionmark.circle") {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HelpRow(variable: "uv", description: "UV coordinates (0 to 1)")
-                                HelpRow(variable: "iTime", description: "Time in seconds")
-                                HelpRow(variable: "float2, float3, float4", description: "Vector types")
+                        FormSection(title: "Variables & Parameters", icon: "questionmark.circle") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Built-in Variables")
+                                        .font(.caption.bold())
+                                        .foregroundColor(.secondary)
+                                    HelpRow(variable: "uv", description: "UV coordinates (0 to 1)")
+                                    HelpRow(variable: "iTime", description: "Time in seconds")
+                                }
+                                
+                                Divider()
+                                
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Custom Slider Parameters")
+                                        .font(.caption.bold())
+                                        .foregroundColor(.secondary)
+                                    Text("Ask AI to add sliders, e.g.:")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text("\"dodaj slider do kontroli prędkości\"")
+                                        .font(.caption.italic())
+                                        .foregroundColor(.gray)
+                                    Text("\"add slider for zoom scale\"")
+                                        .font(.caption.italic())
+                                        .foregroundColor(.gray)
+                                }
                             }
                             .font(.caption)
                         }
@@ -277,6 +311,9 @@ struct NewShaderView: View {
             if let generatedCode = await aiService.generateShader(prompt: aiPrompt, currentCode: currentCode, provider: selectedProvider) {
                 code = generatedCode
                 
+                // Update parameters from new code
+                parametersVM.updateFromCode(generatedCode)
+                
                 // Auto-fill name if empty (only on first generation)
                 if name.isEmpty && !aiService.hasConversationContext {
                     let trimmed = promptForName.prefix(30).trimmingCharacters(in: .whitespaces)
@@ -327,6 +364,80 @@ struct HelpRow: View {
 
 #Preview {
     NewShaderView { _ in }
+}
+
+// MARK: - Parameter Control Row (Slider or Toggle)
+
+struct ParameterControlRow: View {
+    @Binding var parameter: ShaderParameter
+    
+    var body: some View {
+        Group {
+            switch parameter.type {
+            case .slider:
+                ParameterSliderRow(parameter: $parameter)
+            case .toggle:
+                ParameterToggleRow(parameter: $parameter)
+            }
+        }
+    }
+}
+
+// MARK: - Parameter Slider Row
+
+struct ParameterSliderRow: View {
+    @Binding var parameter: ShaderParameter
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack {
+                Text(parameter.displayName)
+                    .font(.caption)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Text(String(format: "%.2f", parameter.currentValue))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.gray)
+            }
+            
+            Slider(
+                value: $parameter.currentValue,
+                in: parameter.minValue...parameter.maxValue
+            )
+            .tint(Color(red: 254/255, green: 20/255, blue: 77/255))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemBackground))
+    }
+}
+
+// MARK: - Parameter Toggle Row
+
+struct ParameterToggleRow: View {
+    @Binding var parameter: ShaderParameter
+    
+    var body: some View {
+        HStack {
+            Text(parameter.displayName)
+                .font(.caption)
+                .foregroundColor(.white)
+            
+            Spacer()
+            
+            Toggle("", isOn: Binding(
+                get: { parameter.currentValue > 0.5 },
+                set: { parameter.currentValue = $0 ? 1.0 : 0.0 }
+            ))
+            .tint(Color(red: 254/255, green: 20/255, blue: 77/255))
+            .labelsHidden()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemBackground))
+    }
 }
 
 // MARK: - Custom Form Section (Sharp Corners)
