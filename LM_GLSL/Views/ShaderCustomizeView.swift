@@ -16,6 +16,7 @@ struct ShaderCustomizeView: View {
     
     @State private var editedCode: String = ""
     @State private var showingSaveAlert: Bool = false
+    @State private var showingFullParameters: Bool = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -84,9 +85,22 @@ struct ShaderCustomizeView: View {
                     // Parameters section
                     if let parameters = shader.parameters, !parameters.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Parameters")
-                                .font(.headline)
-                                .foregroundColor(.white)
+                            HStack {
+                                Text("Parameters")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                                
+                                Button {
+                                    showingFullParameters = true
+                                } label: {
+                                    Label("Full View", systemImage: "arrow.up.left.and.arrow.down.right")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(Color(hex: "FE144D"))
+                            }
                             
                             VStack(spacing: 12) {
                                 ForEach(parameters) { param in
@@ -196,6 +210,9 @@ struct ShaderCustomizeView: View {
             }
         } message: {
             Text("Are you sure you want to delete this shader? This action cannot be undone.")
+        }
+        .fullScreenCover(isPresented: $showingFullParameters) {
+            ShaderParametersView(shader: shader)
         }
     }
     

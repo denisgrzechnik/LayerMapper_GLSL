@@ -18,6 +18,7 @@ struct ShaderListView: View {
     @Binding var searchText: String
     @Binding var isCustomizing: Bool
     @Binding var showingNewShaderSheet: Bool
+    @Binding var showingParametersView: Bool
     
     @State private var showingFavorites: Bool = false
     
@@ -137,7 +138,7 @@ struct ShaderListView: View {
                                 },
                                 onParameters: {
                                     selectedShader = shader
-                                    isCustomizing = true
+                                    showingParametersView = true
                                 }
                             )
                         }
@@ -244,7 +245,8 @@ struct ShaderThumbnailView: View {
         selectedCategory: .constant(.all),
         searchText: .constant(""),
         isCustomizing: .constant(false),
-        showingNewShaderSheet: .constant(false)
+        showingNewShaderSheet: .constant(false),
+        showingParametersView: .constant(false)
     )
     .modelContainer(for: ShaderEntity.self, inMemory: true)
 }

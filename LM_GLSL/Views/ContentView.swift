@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var isCustomizing: Bool = false
     @State private var showingNewShaderSheet: Bool = false
     @State private var showingCodeEditor: Bool = false
+    @State private var showingParametersView: Bool = false
     @State private var isFullscreen: Bool = false
     
     private var filteredShaders: [ShaderEntity] {
@@ -64,7 +65,8 @@ struct ContentView: View {
                                 selectedCategory: $selectedCategory,
                                 searchText: $searchText,
                                 isCustomizing: $isCustomizing,
-                                showingNewShaderSheet: $showingNewShaderSheet
+                                showingNewShaderSheet: $showingNewShaderSheet,
+                                showingParametersView: $showingParametersView
                             )
                         }
                     }
@@ -95,6 +97,11 @@ struct ContentView: View {
                 ShaderCodeEditorView(shader: shader) {
                     try? modelContext.save()
                 }
+            }
+        }
+        .fullScreenCover(isPresented: $showingParametersView) {
+            if let shader = selectedShader {
+                ShaderParametersView(shader: shader)
             }
         }
         .onAppear {
