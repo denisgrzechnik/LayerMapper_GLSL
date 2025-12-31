@@ -10,6 +10,7 @@ import MetalKit
 
 struct ShaderPreviewView: View {
     let shader: ShaderEntity?
+    @Binding var isFullscreen: Bool
     
     // HDMI output aspect ratio (16:9)
     private let hdmiAspectRatio: CGFloat = 16.0 / 9.0
@@ -18,10 +19,6 @@ struct ShaderPreviewView: View {
     @State private var currentTime: Double = 0
     @State private var showInfo: Bool = false
     @State private var showOverlay: Bool = false
-    @State private var isFullscreen: Bool = false
-    
-    // Namespace for matched geometry effect
-    @Namespace private var animation
     
     var body: some View {
         GeometryReader { geometry in
@@ -33,75 +30,59 @@ struct ShaderPreviewView: View {
                 // Background
                 Color.black
                 
-                if !isFullscreen {
-                    // Normal preview with aspect ratio
-                    ZStack {
-                        // Metal rendering view
-                        if let shader = shader {
-                            MetalShaderView(
-                                shaderCode: shader.fragmentCode,
-                                isPlaying: $isPlaying,
-                                currentTime: $currentTime
-                            )
-                            .frame(width: previewSize.width, height: previewSize.height)
-                            .matchedGeometryEffect(id: "shaderView", in: animation)
-                        } else {
-                            // Placeholder when no shader selected
-                            VStack(spacing: 20) {
-                                Image(systemName: "sparkles.rectangle.stack")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.gray)
-                                
-                                Text("Select a shader to preview")
-                                    .font(.title2)
-                                    .foregroundColor(.gray)
-                            }
-                            .frame(width: previewSize.width, height: previewSize.height)
-                            .background(Color(white: 0.1))
+                // Normal preview with aspect ratio
+                ZStack {
+                    // Metal rendering view
+                    if let shader = shader {
+                        MetalShaderView(
+                            shaderCode: shader.fragmentCode,
+                            isPlaying: $isPlaying,
+                            currentTime: $currentTime
+                        )
+                        .frame(width: previewSize.width, height: previewSize.height)
+                    } else {
+                        // Placeholder when no shader selected
+                        VStack(spacing: 20) {
+                            Image(systemName: "sparkles.rectangle.stack")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray)
+                            
+                            Text("Select a shader to preview")
+                                .font(.title2)
+                                .foregroundColor(.gray)
                         }
-                        
-                        // Overlay controls - only visible when showOverlay is true
-                        if showOverlay, shader != nil {
-                            overlayControls
-                                .frame(width: previewSize.width, height: previewSize.height)
-                                .transition(.opacity)
-                        }
-                        
-                        // Info panel overlay
-                        if showInfo, let shader = shader {
-                            ShaderInfoPanel(shader: shader, isPresented: $showInfo)
-                        }
+                        .frame(width: previewSize.width, height: previewSize.height)
+                        .background(Color(white: 0.1))
                     }
-                    .frame(width: previewSize.width, height: previewSize.height)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        // Double tap to toggle fullscreen with zoom animation
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            isFullscreen = true
-                        }
+                    
+                    // Overlay controls - only visible when showOverlay is true
+                    if showOverlay, shader != nil {
+                        overlayControls
+                            .frame(width: previewSize.width, height: previewSize.height)
+                            .transition(.opacity)
                     }
-                    .onTapGesture(count: 1) {
-                        // Single tap to toggle overlay
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            showOverlay.toggle()
-                        }
+                    
+                    // Info panel overlay
+                    if showInfo, let shader = shader {
+                        ShaderInfoPanel(shader: shader, isPresented: $showInfo)
+                    }
+                }
+                .frame(width: previewSize.width, height: previewSize.height)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) {
+                    // Double tap to toggle fullscreen with zoom animation
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isFullscreen = true
+                    }
+                }
+                .onTapGesture(count: 1) {
+                    // Single tap to toggle overlay
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showOverlay.toggle()
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay {
-                // Fullscreen overlay with zoom animation
-                if isFullscreen {
-                    FullscreenShaderOverlay(
-                        shader: shader,
-                        isPlaying: $isPlaying,
-                        currentTime: $currentTime,
-                        isPresented: $isFullscreen,
-                        animation: animation
-                    )
-                    .transition(.scale(scale: 0.1).combined(with: .opacity))
-                }
-            }
         }
     }
     
@@ -647,5 +628,5 @@ struct FullscreenShaderOverlay: View {
 }
 
 #Preview {
-    ShaderPreviewView(shader: nil)
+    ShaderPreviewView(shader: nil, isFullscreen: .constant(false))
 }

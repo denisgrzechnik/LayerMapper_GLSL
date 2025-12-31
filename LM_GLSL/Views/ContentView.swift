@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var isCustomizing: Bool = false
     @State private var showingNewShaderSheet: Bool = false
     @State private var showingCodeEditor: Bool = false
+    @State private var isFullscreen: Bool = false
     
     private var filteredShaders: [ShaderEntity] {
         var result = allShaders
@@ -39,34 +40,46 @@ struct ContentView: View {
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Left side - Shader Preview (80%)
-                ShaderPreviewView(shader: selectedShader)
-                    .frame(width: geometry.size.width * 0.8)
-                
-                Divider()
-                
-                // Right side - Shader List or Customization Panel (20%)
-                Group {
-                    if isCustomizing, let shader = selectedShader {
-                        ShaderCustomizeView(
-                            shader: shader,
-                            isCustomizing: $isCustomizing,
-                            showingCodeEditor: $showingCodeEditor
-                        )
-                    } else {
-                        ShaderListView(
-                            shaders: filteredShaders,
-                            selectedShader: $selectedShader,
-                            selectedCategory: $selectedCategory,
-                            searchText: $searchText,
-                            isCustomizing: $isCustomizing,
-                            showingNewShaderSheet: $showingNewShaderSheet
-                        )
+        ZStack {
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    // Left side - Shader Preview (80%)
+                    ShaderPreviewView(shader: selectedShader, isFullscreen: $isFullscreen)
+                        .frame(width: geometry.size.width * 0.8)
+                    
+                    Divider()
+                    
+                    // Right side - Shader List or Customization Panel (20%)
+                    Group {
+                        if isCustomizing, let shader = selectedShader {
+                            ShaderCustomizeView(
+                                shader: shader,
+                                isCustomizing: $isCustomizing,
+                                showingCodeEditor: $showingCodeEditor
+                            )
+                        } else {
+                            ShaderListView(
+                                shaders: filteredShaders,
+                                selectedShader: $selectedShader,
+                                selectedCategory: $selectedCategory,
+                                searchText: $searchText,
+                                isCustomizing: $isCustomizing,
+                                showingNewShaderSheet: $showingNewShaderSheet
+                            )
+                        }
                     }
+                    .frame(width: geometry.size.width * 0.2)
                 }
-                .frame(width: geometry.size.width * 0.2)
+            }
+            
+            // Fullscreen overlay on top of everything
+            if isFullscreen {
+                FullscreenShaderOverlayTopLevel(
+                    shader: selectedShader,
+                    isPresented: $isFullscreen
+                )
+                .transition(.scale(scale: 0.1).combined(with: .opacity))
+                .zIndex(999)
             }
         }
         .preferredColorScheme(.dark)
@@ -88,6 +101,89 @@ struct ContentView: View {
             // Select first shader if none selected
             if selectedShader == nil {
                 selectedShader = allShaders.first
+            }
+        }
+    }
+}
+
+// MARK: - Fullscreen Shader Overlay (Top Level)
+
+struct FullscreenShaderOverlayTopLevel: View {
+    let shader: ShaderEntity?
+    @Binding var isPresented: Bool
+    
+    @State private var isPlaying: Bool = true
+    @State private var currentTime: Double = 0
+    @State private var showControls: Bool = false
+    
+    var body: some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+            
+            if let shader = shader {
+                MetalShaderView(
+                    shaderCode: shader.fragmentCode,
+                    isPlaying: $isPlaying,
+                    currentTime: $currentTime
+                )
+                .ignoresSafeArea()
+            }
+            
+            // Controls overlay
+            if showControls {
+                VStack {
+                    // Top bar with close button
+                    HStack {
+                        Spacer()
+                        
+                        Button {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isPresented = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding()
+                    }
+                    .background(
+                        LinearGradient(
+                            colors: [.black.opacity(0.5), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    
+                    Spacer()
+                    
+                    // Bottom playback controls
+                    HStack(spacing: 20) {
+                        Button {
+                            isPlaying.toggle()
+                        } label: {
+                            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                    }
+                    .padding()
+                    .background(
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.5)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .transition(.opacity)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showControls.toggle()
             }
         }
     }
