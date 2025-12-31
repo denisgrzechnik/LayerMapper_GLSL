@@ -347,4 +347,35 @@ class ParameterAutomationManager: ObservableObject {
     func keyframeCount(for parameterName: String) -> Int {
         tracks[parameterName]?.keyframes.count ?? 0
     }
+    
+    // MARK: - Serialization (Save/Load)
+    
+    /// Export tracks to Data for saving
+    func exportToData() -> Data? {
+        guard hasAnyRecording else { return nil }
+        
+        let tracksArray = Array(tracks.values)
+        return try? JSONEncoder().encode(tracksArray)
+    }
+    
+    /// Import tracks from Data
+    func importFromData(_ data: Data?) {
+        guard let data = data else { return }
+        
+        do {
+            let tracksArray = try JSONDecoder().decode([ParameterAutomationTrack].self, from: data)
+            tracks = Dictionary(uniqueKeysWithValues: tracksArray.map { ($0.parameterName, $0) })
+            updateLoopDuration()
+        } catch {
+            print("Failed to decode automation data: \(error)")
+        }
+    }
+    
+    /// Load and auto-start playback if there's automation
+    func loadAndPlay(from data: Data?) {
+        importFromData(data)
+        if hasAnyRecording {
+            startPlayback()
+        }
+    }
 }

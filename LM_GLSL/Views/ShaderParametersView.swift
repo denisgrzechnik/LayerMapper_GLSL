@@ -24,6 +24,7 @@ struct ShaderParametersView: View {
     @State private var showAPIKeySheet = false
     @State private var isPlaying: Bool = true
     @State private var currentTime: Double = 0
+    @State private var isFullscreen: Bool = false
     
     // Control panel selection
     @State private var selectedControlPanel: ControlPanelType = .grid
@@ -35,6 +36,19 @@ struct ShaderParametersView: View {
     }
     
     var body: some View {
+        ZStack {
+            mainContent
+            
+            // Fullscreen overlay
+            if isFullscreen {
+                fullscreenOverlay
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: isFullscreen)
+    }
+    
+    private var mainContent: some View {
         GeometryReader { geometry in
             let isLandscape = geometry.size.width > geometry.size.height
             
@@ -100,8 +114,10 @@ struct ShaderParametersView: View {
         .onAppear {
             parametersVM.updateFromCode(shader.fragmentCode)
             // Initialize AI with current shader code as context
-            // So AI can modify this shader instead of creating from scratch
             aiService.initializeWithShaderContext(shader.fragmentCode)
+            
+            // Load saved automation and start playback
+            automationManager.loadAndPlay(from: shader.automationData)
             
             // Setup automation playback callback
             automationManager.onParameterUpdate = { [weak parametersVM] name, value in
@@ -111,6 +127,11 @@ struct ShaderParametersView: View {
                 }
             }
         }
+        .onDisappear {
+            // Save automation when leaving
+            shader.automationData = automationManager.exportToData()
+            try? modelContext.save()
+        }
         .onChange(of: shader.fragmentCode) { _, newCode in
             parametersVM.updateFromCode(newCode)
         }
@@ -118,6 +139,25 @@ struct ShaderParametersView: View {
             APIKeySettingsSheet(provider: selectedProvider)
         }
         .preferredColorScheme(.dark)
+    }
+    
+    // MARK: - Fullscreen Overlay
+    
+    private var fullscreenOverlay: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            MetalShaderView(
+                shaderCode: shader.fragmentCode,
+                isPlaying: $isPlaying,
+                currentTime: $currentTime,
+                parameters: parametersVM.parameters
+            )
+            .ignoresSafeArea()
+            .onTapGesture(count: 2) {
+                isFullscreen = false
+            }
+        }
     }
     
     // MARK: - Shader Preview Panel
@@ -144,13 +184,16 @@ struct ShaderParametersView: View {
             .padding(.vertical, 8)
             .background(Color.black.opacity(0.5))
             
-            // Preview
+            // Preview - double tap for fullscreen
             MetalShaderView(
                 shaderCode: shader.fragmentCode,
                 isPlaying: $isPlaying,
                 currentTime: $currentTime,
                 parameters: parametersVM.parameters
             )
+            .onTapGesture(count: 2) {
+                isFullscreen = true
+            }
         }
         .background(Color.black)
     }

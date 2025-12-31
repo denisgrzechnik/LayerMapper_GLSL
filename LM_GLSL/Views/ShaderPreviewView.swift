@@ -20,6 +20,10 @@ struct ShaderPreviewView: View {
     @State private var showInfo: Bool = false
     @State private var showOverlay: Bool = false
     
+    // Automation & Parameters
+    @StateObject private var automationManager = ParameterAutomationManager()
+    @StateObject private var parametersVM = ShaderParametersViewModel()
+    
     var body: some View {
         GeometryReader { geometry in
             // Calculate size to maintain 16:9 aspect ratio, full width
@@ -37,7 +41,8 @@ struct ShaderPreviewView: View {
                         MetalShaderView(
                             shaderCode: shader.fragmentCode,
                             isPlaying: $isPlaying,
-                            currentTime: $currentTime
+                            currentTime: $currentTime,
+                            parameters: parametersVM.parameters
                         )
                         .frame(width: previewSize.width, height: previewSize.height)
                     } else {
@@ -83,6 +88,36 @@ struct ShaderPreviewView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of: shader?.id) { _, _ in
+            loadShaderData()
+        }
+        .onAppear {
+            loadShaderData()
+        }
+    }
+    
+    // MARK: - Load Shader Data & Automation
+    
+    private func loadShaderData() {
+        guard let shader = shader else {
+            automationManager.clearAllTracks()
+            parametersVM.parameters = []
+            return
+        }
+        
+        // Parse parameters from shader code
+        parametersVM.updateFromCode(shader.fragmentCode)
+        
+        // Load and play automation
+        automationManager.loadAndPlay(from: shader.automationData)
+        
+        // Setup automation callback
+        automationManager.onParameterUpdate = { [weak parametersVM] name, value in
+            guard let vm = parametersVM else { return }
+            if let index = vm.parameters.firstIndex(where: { $0.name == name }) {
+                vm.parameters[index].currentValue = value
+            }
         }
     }
     

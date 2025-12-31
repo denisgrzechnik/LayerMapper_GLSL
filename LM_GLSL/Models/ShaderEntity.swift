@@ -43,6 +43,9 @@ final class ShaderEntity {
     // MARK: - Parametry (jako JSON)
     var parametersJSON: Data?
     
+    // MARK: - Automation (jako JSON)
+    var automationData: Data?
+    
     // MARK: - Thumbnail
     var thumbnailData: Data?
     var thumbnailColorHex: String
