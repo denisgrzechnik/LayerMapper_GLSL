@@ -25,6 +25,7 @@ struct ShaderParametersView: View {
     @State private var isPlaying: Bool = true
     @State private var currentTime: Double = 0
     @State private var isFullscreen: Bool = false
+    @State private var showSettings: Bool = false
     
     // Control panel selection
     @State private var selectedControlPanel: ControlPanelType = .grid
@@ -46,6 +47,9 @@ struct ShaderParametersView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isFullscreen)
+        .sheet(isPresented: $showSettings) {
+            ShaderSettingsView(shader: shader)
+        }
     }
     
     private var mainContent: some View {
@@ -171,6 +175,14 @@ struct ShaderParametersView: View {
                     .foregroundColor(.white)
                 
                 Spacer()
+                
+                // Settings button
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundColor(.white.opacity(0.8))
+                }
                 
                 // Play/Pause
                 Button {
