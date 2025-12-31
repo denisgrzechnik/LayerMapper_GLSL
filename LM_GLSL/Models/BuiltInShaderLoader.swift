@@ -13,7 +13,7 @@ import SwiftData
 class BuiltInShaderLoader {
     
     private let modelContext: ModelContext
-    private let userDefaultsKey = "BuiltInShadersLoaded_v2"
+    private let userDefaultsKey = "BuiltInShadersLoaded_v13"
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -81,12 +81,30 @@ class BuiltInShaderLoader {
         loadGradientShaders()
         
         // Part 5: 3DStyle, Particles, Neon, Tech, Motion, Minimal
+        print("🔵 Loading 3D Shaders...")
         loadThreeDShaders()
+        print("✅ 3D Shaders loaded")
+        
+        print("🔵 Loading Particle Shaders...")
         loadParticleShaders()
+        print("✅ Particle Shaders loaded")
+        
+        print("🔵 Loading Neon Shaders...")
         loadNeonShaders()
-        loadTechShaders()
+        print("✅ Neon Shaders loaded")
+        
+        print("🔵 Loading Tech Shaders...")
+        // WYŁĄCZONE TYMCZASOWO - powoduje crash
+        // loadTechShaders()
+        print("⚠️ Tech Shaders SKIPPED (causing crash)")
+        
+        print("🔵 Loading Motion Shaders...")
         loadMotionShaders()
+        print("✅ Motion Shaders loaded")
+        
+        print("🔵 Loading Minimal Shaders...")
         loadMinimalShaders()
+        print("✅ Minimal Shaders loaded")
         
         do {
             try modelContext.save()
@@ -260,10 +278,15 @@ class BuiltInShaderLoader {
     }
     
     private func loadTechShaders() {
+        print("  📍 Loading Circuit Board...")
         loadShader(name: "Circuit Board", code: circuitBoardCode, category: .tech)
+        print("  📍 Loading Data Stream...")
         loadShader(name: "Data Stream", code: dataStreamCode, category: .tech)
+        print("  📍 Loading Hologram...")
         loadShader(name: "Hologram", code: hologramCode, category: .tech)
+        print("  📍 Loading Binary Rain...")
         loadShader(name: "Binary Rain", code: binaryRainCode, category: .tech)
+        print("  📍 Loading Loading Spinner...")
         loadShader(name: "Loading Spinner", code: loadingSpinnerCode, category: .tech)
     }
     
