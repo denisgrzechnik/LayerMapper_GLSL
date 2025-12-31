@@ -10,6 +10,7 @@ import SwiftData
 
 struct NewShaderView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var aiService = AIShaderService.shared
     
     let onCreate: (ShaderEntity) -> Void
     
@@ -18,6 +19,11 @@ struct NewShaderView: View {
     @State private var description: String = ""
     @State private var code: String = defaultShaderCode
     @State private var selectedTemplate: ShaderTemplate = .blank
+    
+    // AI Generation
+    @State private var aiPrompt: String = ""
+    @State private var selectedProvider: AIProvider = .openAI
+    @State private var showAPIKeySheet = false
     
     enum ShaderTemplate: String, CaseIterable {
         case blank = "Blank"
@@ -79,6 +85,71 @@ struct NewShaderView: View {
                     }
                 }
                 
+                // AI Generation Section
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Provider picker
+                        HStack {
+                            Text("Provider:")
+                                .foregroundColor(.secondary)
+                            Picker("", selection: $selectedProvider) {
+                                ForEach(AIProvider.allCases) { provider in
+                                    Text(provider.rawValue).tag(provider)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            
+                            Spacer()
+                            
+                            if selectedProvider.requiresAPIKey {
+                                Button {
+                                    showAPIKeySheet = true
+                                } label: {
+                                    Image(systemName: hasAPIKey ? "key.fill" : "key")
+                                        .foregroundColor(hasAPIKey ? .green : .orange)
+                                }
+                            }
+                        }
+                        
+                        // Prompt input
+                        TextField("Opisz shader, np. 'kolorowa spirala z neonowym efektem'", text: $aiPrompt, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        // Generate button
+                        Button {
+                            generateWithAI()
+                        } label: {
+                            HStack {
+                                if aiService.isGenerating {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                }
+                                Text(aiService.isGenerating ? "Generuję..." : "Generuj z AI")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 254/255, green: 20/255, blue: 77/255)) // #FE144D
+                        .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
+                        
+                        // Error message
+                        if let error = aiService.errorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    }
+                } header: {
+                    Label("AI Shader Generator", systemImage: "sparkles")
+                } footer: {
+                    Text(aiFooterText)
+                }
+                
                 // Code section
                 Section("Shader Code") {
                     TextEditor(text: $code)
@@ -127,8 +198,48 @@ struct NewShaderView: View {
                     .fontWeight(.semibold)
                 }
             }
+            .sheet(isPresented: $showAPIKeySheet) {
+                APIKeySettingsSheet(provider: selectedProvider)
+            }
         }
         .preferredColorScheme(.dark)
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var hasAPIKey: Bool {
+        guard let key = aiService.getAPIKey(for: selectedProvider) else { return false }
+        return !key.isEmpty
+    }
+    
+    private var aiFooterText: String {
+        switch selectedProvider {
+        case .openAI:
+            return "GPT-4o-mini: ~$0.15/1M tokenów. Wymaga klucza API z platform.openai.com"
+        case .groq:
+            return "Darmowe 6000 req/dzień. Zarejestruj się na console.groq.com"
+        case .ollama:
+            return "Lokalnie na Mac. Zainstaluj: brew install ollama && ollama pull codellama"
+        }
+    }
+    
+    // MARK: - AI Generation
+    
+    private func generateWithAI() {
+        Task {
+            if let generatedCode = await aiService.generateShader(prompt: aiPrompt, provider: selectedProvider) {
+                code = generatedCode
+                selectedTemplate = .blank // Reset template selection
+                
+                // Auto-fill name if empty
+                if name.isEmpty {
+                    name = aiPrompt.prefix(30).trimmingCharacters(in: .whitespaces)
+                    if aiPrompt.count > 30 {
+                        name += "..."
+                    }
+                }
+            }
+        }
     }
     
     private func createShader() {
@@ -167,4 +278,85 @@ struct HelpRow: View {
 
 #Preview {
     NewShaderView { _ in }
+}
+
+// MARK: - API Key Settings Sheet
+
+struct APIKeySettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var aiService = AIShaderService.shared
+    
+    let provider: AIProvider
+    
+    @State private var apiKey: String = ""
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("API Key", text: $apiKey)
+                        .textContentType(.password)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Klucz API dla \(provider.rawValue)")
+                } footer: {
+                    Text(footerText)
+                }
+                
+                Section {
+                    Link(destination: providerURL) {
+                        HStack {
+                            Text("Uzyskaj klucz API")
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Ustawienia API")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Anuluj") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Zapisz") {
+                        aiService.setAPIKey(apiKey, for: provider)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear {
+                apiKey = aiService.getAPIKey(for: provider) ?? ""
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.dark)
+    }
+    
+    private var footerText: String {
+        switch provider {
+        case .openAI:
+            return "Znajdziesz go na platform.openai.com/api-keys"
+        case .groq:
+            return "Znajdziesz go na console.groq.com/keys"
+        case .ollama:
+            return "Ollama nie wymaga klucza API"
+        }
+    }
+    
+    private var providerURL: URL {
+        switch provider {
+        case .openAI:
+            return URL(string: "https://platform.openai.com/api-keys")!
+        case .groq:
+            return URL(string: "https://console.groq.com/keys")!
+        case .ollama:
+            return URL(string: "https://ollama.ai")!
+        }
+    }
 }
