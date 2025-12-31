@@ -3,6 +3,7 @@
 //  LM_GLSL
 //
 //  Model for recording and playing back parameter automation
+//  Each parameter has its own automation track (overdub support)
 //
 
 import Foundation
@@ -13,33 +14,71 @@ import Combine
 
 struct AutomationKeyframe: Codable {
     let time: Double           // Time in seconds from start
-    let parameterName: String  // Which parameter
     let value: Float           // Value at this time
 }
 
-// MARK: - Automation Recording
+// MARK: - Parameter Automation Track
 
-struct AutomationRecording: Codable, Identifiable {
+struct ParameterAutomationTrack: Codable, Identifiable {
     let id: UUID
+    let parameterName: String
     var keyframes: [AutomationKeyframe]
-    var duration: Double       // Total recording duration
-    var recordedAt: Date
     
-    init() {
+    init(parameterName: String) {
         self.id = UUID()
+        self.parameterName = parameterName
         self.keyframes = []
-        self.duration = 0
-        self.recordedAt = Date()
+    }
+    
+    var duration: Double {
+        keyframes.last?.time ?? 0
+    }
+    
+    var isEmpty: Bool {
+        keyframes.isEmpty
+    }
+    
+    /// Get interpolated value at time
+    func valueAt(time: Double) -> Float? {
+        guard !keyframes.isEmpty else { return nil }
+        
+        let sorted = keyframes.sorted { $0.time < $1.time }
+        
+        // Find surrounding keyframes
+        var before: AutomationKeyframe?
+        var after: AutomationKeyframe?
+        
+        for kf in sorted {
+            if kf.time <= time {
+                before = kf
+            } else {
+                after = kf
+                break
+            }
+        }
+        
+        // Interpolate
+        if let b = before, let a = after {
+            let t = Float((time - b.time) / (a.time - b.time))
+            return b.value + (a.value - b.value) * t
+        } else if let b = before {
+            return b.value
+        } else if let a = after {
+            return a.value
+        }
+        
+        return nil
     }
 }
 
 // MARK: - Automation State
 
-enum AutomationState {
+enum AutomationState: Equatable {
     case idle
-    case countdown(Int)        // Countdown seconds remaining
+    case countdown(Int)
     case recording
     case playing
+    case playingAndRecording  // Overdub mode
 }
 
 // MARK: - Automation Manager
@@ -47,11 +86,13 @@ enum AutomationState {
 @MainActor
 class ParameterAutomationManager: ObservableObject {
     @Published var state: AutomationState = .idle
-    @Published var currentRecording: AutomationRecording?
+    @Published var tracks: [String: ParameterAutomationTrack] = [:]  // parameterName -> track
     @Published var playbackTime: Double = 0
+    @Published var loopDuration: Double = 0  // Max duration of all tracks
     @Published var isLooping: Bool = true
     
     private var recordingStartTime: Date?
+    private var playbackStartTime: Date?
     private var playbackTimer: Timer?
     private var countdownTimer: Timer?
     private var lastRecordedValues: [String: Float] = [:]
@@ -59,10 +100,13 @@ class ParameterAutomationManager: ObservableObject {
     // Callback to update parameters during playback
     var onParameterUpdate: ((String, Float) -> Void)?
     
-    // MARK: - Recording Controls
+    // MARK: - Recording Controls (Overdub)
     
     func startRecordingWithCountdown() {
-        guard case .idle = state else { return }
+        // Can start recording while playing (overdub)
+        guard state == .idle || state == .playing else { return }
+        
+        let wasPlaying = state == .playing
         
         state = .countdown(3)
         
@@ -79,70 +123,111 @@ class ParameterAutomationManager: ObservableObject {
                     self.state = .countdown(countdown)
                 } else {
                     timer.invalidate()
-                    self.startRecording()
+                    self.startRecording(wasPlaying: wasPlaying)
                 }
             }
         }
     }
     
-    private func startRecording() {
-        currentRecording = AutomationRecording()
-        recordingStartTime = Date()
+    private func startRecording(wasPlaying: Bool) {
+        if wasPlaying {
+            // Overdub - continue playback, sync recording to playback time
+            recordingStartTime = Date().addingTimeInterval(-playbackTime)
+            state = .playingAndRecording
+        } else {
+            // Fresh recording
+            recordingStartTime = Date()
+            playbackTime = 0
+            state = .recording
+            
+            // Start playback timer for time tracking
+            startPlaybackTimer()
+        }
+        
         lastRecordedValues = [:]
-        state = .recording
     }
     
     func stopRecording() {
-        guard case .recording = state else { return }
+        guard state == .recording || state == .playingAndRecording else { return }
         
-        if var recording = currentRecording, let startTime = recordingStartTime {
-            recording.duration = Date().timeIntervalSince(startTime)
-            currentRecording = recording
-        }
+        let wasOverdub = state == .playingAndRecording
+        
+        // Update loop duration
+        updateLoopDuration()
         
         recordingStartTime = nil
-        state = .idle
         
-        // Auto-start playback if we have keyframes
-        if let recording = currentRecording, !recording.keyframes.isEmpty {
+        if wasOverdub || hasAnyRecording {
+            // Continue playing
+            state = .playing
+        } else {
+            stopPlayback()
+            state = .idle
+        }
+        
+        // Auto-start playback if we have recordings
+        if hasAnyRecording && state == .idle {
             startPlayback()
         }
     }
     
-    func cancelRecording() {
+    func cancelCountdown() {
         countdownTimer?.invalidate()
         countdownTimer = nil
-        recordingStartTime = nil
-        state = .idle
+        
+        if hasAnyRecording {
+            state = .playing
+            if playbackTimer == nil {
+                startPlayback()
+            }
+        } else {
+            state = .idle
+        }
     }
     
     // MARK: - Record Parameter Change
     
     func recordParameterChange(name: String, value: Float) {
-        guard case .recording = state,
-              let startTime = recordingStartTime else { return }
+        guard state == .recording || state == .playingAndRecording else { return }
         
-        // Only record if value actually changed
+        // Only record if value actually changed significantly
         if let lastValue = lastRecordedValues[name], abs(lastValue - value) < 0.001 {
             return
         }
         
         lastRecordedValues[name] = value
         
-        let time = Date().timeIntervalSince(startTime)
-        let keyframe = AutomationKeyframe(time: time, parameterName: name, value: value)
-        currentRecording?.keyframes.append(keyframe)
+        let time = playbackTime
+        let keyframe = AutomationKeyframe(time: time, value: value)
+        
+        // Get or create track for this parameter
+        if tracks[name] == nil {
+            tracks[name] = ParameterAutomationTrack(parameterName: name)
+        }
+        
+        // In overdub, remove old keyframes near this time for this parameter
+        if state == .playingAndRecording {
+            tracks[name]?.keyframes.removeAll { abs($0.time - time) < 0.05 }
+        }
+        
+        tracks[name]?.keyframes.append(keyframe)
     }
     
     // MARK: - Playback Controls
     
     func startPlayback() {
-        guard let recording = currentRecording,
-              !recording.keyframes.isEmpty,
-              recording.duration > 0 else { return }
+        guard hasAnyRecording else { return }
         
+        updateLoopDuration()
         playbackTime = 0
+        playbackStartTime = Date()
         state = .playing
+        
+        startPlaybackTimer()
+    }
+    
+    private func startPlaybackTimer() {
+        playbackTimer?.invalidate()
         
         let interval: TimeInterval = 1.0 / 60.0  // 60 FPS
         playbackTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
@@ -155,99 +240,90 @@ class ParameterAutomationManager: ObservableObject {
     func stopPlayback() {
         playbackTimer?.invalidate()
         playbackTimer = nil
-        state = .idle
+        playbackStartTime = nil
+        
+        if state != .recording {
+            state = .idle
+        }
     }
     
     func togglePlayback() {
-        if case .playing = state {
+        switch state {
+        case .playing, .playingAndRecording:
+            if state == .playingAndRecording {
+                stopRecording()
+            }
             stopPlayback()
-        } else if currentRecording != nil {
-            startPlayback()
+        case .idle:
+            if hasAnyRecording {
+                startPlayback()
+            }
+        default:
+            break
         }
     }
     
     private func updatePlayback() {
-        guard let recording = currentRecording else {
-            stopPlayback()
-            return
-        }
-        
         playbackTime += 1.0 / 60.0
         
-        // Loop or stop at end
-        if playbackTime >= recording.duration {
+        // Loop
+        if loopDuration > 0 && playbackTime >= loopDuration {
             if isLooping {
                 playbackTime = 0
-            } else {
+            } else if state == .playing {
                 stopPlayback()
                 return
             }
         }
         
-        // Find and apply interpolated values for each parameter
-        applyKeyframesAtTime(playbackTime, recording: recording)
+        // Apply automation for parameters not currently being recorded
+        applyAutomation()
     }
     
-    private func applyKeyframesAtTime(_ time: Double, recording: AutomationRecording) {
-        // Group keyframes by parameter
-        let parameterNames = Set(recording.keyframes.map { $0.parameterName })
-        
-        for paramName in parameterNames {
-            let paramKeyframes = recording.keyframes
-                .filter { $0.parameterName == paramName }
-                .sorted { $0.time < $1.time }
-            
-            guard !paramKeyframes.isEmpty else { continue }
-            
-            // Find surrounding keyframes for interpolation
-            var beforeKeyframe: AutomationKeyframe?
-            var afterKeyframe: AutomationKeyframe?
-            
-            for kf in paramKeyframes {
-                if kf.time <= time {
-                    beforeKeyframe = kf
-                } else {
-                    afterKeyframe = kf
-                    break
-                }
-            }
-            
-            // Calculate interpolated value
-            let value: Float
-            if let before = beforeKeyframe, let after = afterKeyframe {
-                // Linear interpolation
-                let t = Float((time - before.time) / (after.time - before.time))
-                value = before.value + (after.value - before.value) * t
-            } else if let before = beforeKeyframe {
-                value = before.value
-            } else if let after = afterKeyframe {
-                value = after.value
-            } else {
+    private func applyAutomation() {
+        for (paramName, track) in tracks {
+            // Skip if we're actively recording this parameter (user is touching slider)
+            if (state == .recording || state == .playingAndRecording),
+               lastRecordedValues[paramName] != nil {
                 continue
             }
             
-            onParameterUpdate?(paramName, value)
+            if let value = track.valueAt(time: playbackTime) {
+                onParameterUpdate?(paramName, value)
+            }
         }
     }
     
-    // MARK: - Clear Recording
+    private func updateLoopDuration() {
+        loopDuration = tracks.values.map { $0.duration }.max() ?? 0
+    }
     
-    func clearRecording() {
+    // MARK: - Clear
+    
+    func clearAllTracks() {
         stopPlayback()
-        currentRecording = nil
+        tracks.removeAll()
+        loopDuration = 0
         state = .idle
+    }
+    
+    func clearTrack(parameterName: String) {
+        tracks.removeValue(forKey: parameterName)
+        updateLoopDuration()
+        
+        if !hasAnyRecording {
+            stopPlayback()
+        }
     }
     
     // MARK: - State Helpers
     
     var isRecording: Bool {
-        if case .recording = state { return true }
-        return false
+        state == .recording || state == .playingAndRecording
     }
     
     var isPlaying: Bool {
-        if case .playing = state { return true }
-        return false
+        state == .playing || state == .playingAndRecording
     }
     
     var isCountingDown: Bool {
@@ -255,16 +331,20 @@ class ParameterAutomationManager: ObservableObject {
         return false
     }
     
-    var hasRecording: Bool {
-        guard let recording = currentRecording else { return false }
-        return !recording.keyframes.isEmpty
+    var hasAnyRecording: Bool {
+        tracks.values.contains { !$0.isEmpty }
     }
     
-    var recordingDuration: Double {
-        currentRecording?.duration ?? 0
+    var totalKeyframeCount: Int {
+        tracks.values.reduce(0) { $0 + $1.keyframes.count }
     }
     
-    var keyframeCount: Int {
-        currentRecording?.keyframes.count ?? 0
+    func hasAutomation(for parameterName: String) -> Bool {
+        guard let track = tracks[parameterName] else { return false }
+        return !track.isEmpty
+    }
+    
+    func keyframeCount(for parameterName: String) -> Int {
+        tracks[parameterName]?.keyframes.count ?? 0
     }
 }

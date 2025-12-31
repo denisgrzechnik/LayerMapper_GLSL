@@ -160,7 +160,7 @@ struct ShaderParametersView: View {
     private var slidersPanel: some View {
         VStack(spacing: 0) {
             // Header with Record and Close buttons
-            HStack {
+            HStack(spacing: 8) {
                 Text("GLSL")
                     .font(.caption.bold())
                     .foregroundColor(.gray)
@@ -168,22 +168,20 @@ struct ShaderParametersView: View {
                 Spacer()
                 
                 // Automation status/playback indicator
-                if automationManager.hasRecording && !automationManager.isRecording && !automationManager.isCountingDown {
+                if automationManager.hasAnyRecording {
                     HStack(spacing: 4) {
-                        Text(String(format: "%.1fs", automationManager.isPlaying ? automationManager.playbackTime : automationManager.recordingDuration))
+                        Text(String(format: "%.1fs", automationManager.playbackTime))
                             .font(.caption2.monospacedDigit())
-                        Text("(\(automationManager.keyframeCount))")
-                            .font(.caption2)
                     }
-                    .foregroundColor(.gray)
+                    .foregroundColor(automationManager.isPlaying ? .green : .gray)
                 }
                 
                 // Play/Pause button (only when recording exists)
-                if automationManager.hasRecording && !automationManager.isRecording && !automationManager.isCountingDown {
+                if automationManager.hasAnyRecording {
                     playPauseButton
                 }
                 
-                // Record button (always visible)
+                // Record button (always visible) - simple dot
                 recordButton
                 
                 // Close button
@@ -258,31 +256,35 @@ struct ShaderParametersView: View {
         }
     }
     
-    // MARK: - Record Button
+    // MARK: - Record Button (simple dot)
     
     private var recordButton: some View {
         Button {
             handleRecordButtonTap()
         } label: {
-            HStack(spacing: 4) {
+            ZStack {
                 Circle()
-                    .fill(recordButtonColor)
-                    .frame(width: 8, height: 8)
+                    .fill(recordButtonColor.opacity(0.2))
+                    .frame(width: 28, height: 28)
                 
-                Text(recordButtonLabel)
-                    .font(.caption2.bold())
+                if case .countdown(let seconds) = automationManager.state {
+                    // Show countdown number
+                    Text("\(seconds)")
+                        .font(.caption.bold())
+                        .foregroundColor(.orange)
+                } else {
+                    // Show record dot
+                    Circle()
+                        .fill(recordButtonColor)
+                        .frame(width: automationManager.isRecording ? 10 : 8, height: automationManager.isRecording ? 10 : 8)
+                }
             }
-            .foregroundColor(recordButtonColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(recordButtonColor.opacity(0.2))
-            .cornerRadius(10)
         }
     }
     
     private var recordButtonColor: Color {
         switch automationManager.state {
-        case .recording:
+        case .recording, .playingAndRecording:
             return .red
         case .countdown:
             return .orange
@@ -291,28 +293,14 @@ struct ShaderParametersView: View {
         }
     }
     
-    private var recordButtonLabel: String {
-        switch automationManager.state {
-        case .recording:
-            return "STOP"
-        case .countdown(let seconds):
-            return "\(seconds)"
-        case .playing, .idle:
-            return "REC"
-        }
-    }
-    
     private func handleRecordButtonTap() {
         switch automationManager.state {
         case .idle, .playing:
-            // Stop playback if playing, then start recording
-            if automationManager.isPlaying {
-                automationManager.stopPlayback()
-            }
+            // Overdub - don't stop playback, start recording on top
             automationManager.startRecordingWithCountdown()
         case .countdown:
-            automationManager.cancelRecording()
-        case .recording:
+            automationManager.cancelCountdown()
+        case .recording, .playingAndRecording:
             automationManager.stopRecording()
         }
     }
