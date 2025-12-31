@@ -11,126 +11,197 @@ import MetalKit
 struct ShaderPreviewView: View {
     let shader: ShaderEntity?
     
+    // HDMI output aspect ratio (16:9)
+    private let hdmiAspectRatio: CGFloat = 16.0 / 9.0
+    
     @State private var isPlaying: Bool = true
     @State private var currentTime: Double = 0
     @State private var showInfo: Bool = false
+    @State private var showOverlay: Bool = false
+    @State private var isFullscreen: Bool = false
     
     var body: some View {
-        ZStack {
-            // Metal rendering view
-            if let shader = shader {
-                MetalShaderView(
-                    shaderCode: shader.fragmentCode,
-                    isPlaying: $isPlaying,
-                    currentTime: $currentTime
-                )
-            } else {
-                // Placeholder when no shader selected
-                VStack(spacing: 20) {
-                    Image(systemName: "sparkles.rectangle.stack")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
+        GeometryReader { geometry in
+            // Calculate size to maintain 16:9 aspect ratio, full width
+            let containerSize = geometry.size
+            let previewSize = calculatePreviewSize(containerSize: containerSize)
+            
+            ZStack {
+                // Background
+                Color.black
+                
+                // Centered preview with aspect ratio
+                ZStack {
+                    // Metal rendering view
+                    if let shader = shader {
+                        MetalShaderView(
+                            shaderCode: shader.fragmentCode,
+                            isPlaying: $isPlaying,
+                            currentTime: $currentTime
+                        )
+                        .frame(width: previewSize.width, height: previewSize.height)
+                    } else {
+                        // Placeholder when no shader selected
+                        VStack(spacing: 20) {
+                            Image(systemName: "sparkles.rectangle.stack")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray)
+                            
+                            Text("Select a shader to preview")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                        }
+                        .frame(width: previewSize.width, height: previewSize.height)
+                        .background(Color(white: 0.1))
+                    }
                     
-                    Text("Select a shader to preview")
-                        .font(.title2)
-                        .foregroundColor(.gray)
+                    // Overlay controls - only visible when showOverlay is true
+                    if showOverlay, shader != nil {
+                        overlayControls
+                            .frame(width: previewSize.width, height: previewSize.height)
+                            .transition(.opacity)
+                    }
+                    
+                    // Info panel overlay
+                    if showInfo, let shader = shader {
+                        ShaderInfoPanel(shader: shader, isPresented: $showInfo)
+                    }
+                }
+                .frame(width: previewSize.width, height: previewSize.height)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) {
+                    // Double tap to toggle fullscreen
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isFullscreen.toggle()
+                    }
+                }
+                .onTapGesture(count: 1) {
+                    // Single tap to toggle overlay
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showOverlay.toggle()
+                    }
                 }
             }
-            
-            // Overlay controls
-            VStack {
-                // Top bar with shader info
-                if let shader = shader {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(shader.name)
-                                .font(.title2.bold())
-                                .foregroundColor(.white)
-                            
-                            HStack(spacing: 12) {
-                                Label(shader.category.rawValue, systemImage: shader.category.icon)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                
-                                if shader.isFavorite {
-                                    Image(systemName: "heart.fill")
-                                        .foregroundColor(.red)
-                                }
-                                
-                                Text("by \(shader.author)")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Info button
-                        Button {
-                            withAnimation {
-                                showInfo.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "info.circle")
-                                .font(.title2)
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                    }
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            colors: [.black.opacity(0.7), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                }
-                
-                Spacer()
-                
-                // Bottom playback controls
-                HStack(spacing: 20) {
-                    // Play/Pause
-                    Button {
-                        isPlaying.toggle()
-                    } label: {
-                        Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 44))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .fullScreenCover(isPresented: $isFullscreen) {
+            FullscreenShaderView(
+                shader: shader,
+                isPlaying: $isPlaying,
+                currentTime: $currentTime,
+                isPresented: $isFullscreen
+            )
+        }
+    }
+    
+    // MARK: - Calculate Preview Size (16:9 aspect ratio, full width)
+    
+    private func calculatePreviewSize(containerSize: CGSize) -> CGSize {
+        // Use full width of container
+        let availableWidth = containerSize.width
+        var height = availableWidth / hdmiAspectRatio
+        
+        // If height exceeds available height, calculate based on height instead
+        if height > containerSize.height {
+            height = containerSize.height
+            let width = height * hdmiAspectRatio
+            return CGSize(width: width, height: height)
+        }
+        
+        return CGSize(width: availableWidth, height: height)
+    }
+    
+    // MARK: - Overlay Controls
+    
+    @ViewBuilder
+    private var overlayControls: some View {
+        VStack {
+            // Top bar with shader info
+            if let shader = shader {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(shader.name)
+                            .font(.title2.bold())
                             .foregroundColor(.white)
-                    }
-                    
-                    // Reset time
-                    Button {
-                        currentTime = 0
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.title2)
-                            .foregroundColor(.white.opacity(0.8))
+                        
+                        HStack(spacing: 12) {
+                            Label(shader.category.rawValue, systemImage: shader.category.icon)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            if shader.isFavorite {
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(.red)
+                            }
+                            
+                            Text("by \(shader.author)")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
                     }
                     
                     Spacer()
                     
-                    // Time display
-                    Text(String(format: "%.1fs", currentTime))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
+                    // Info button
+                    Button {
+                        withAnimation {
+                            showInfo.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.title2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
                 }
                 .padding()
                 .background(
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.7)],
+                        colors: [.black.opacity(0.7), .clear],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             }
             
-            // Info panel overlay
-            if showInfo, let shader = shader {
-                ShaderInfoPanel(shader: shader, isPresented: $showInfo)
+            Spacer()
+            
+            // Bottom playback controls
+            HStack(spacing: 20) {
+                // Play/Pause
+                Button {
+                    isPlaying.toggle()
+                } label: {
+                    Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundColor(.white)
+                }
+                
+                // Reset time
+                Button {
+                    currentTime = 0
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.title2)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                Spacer()
+                
+                // Time display
+                Text(String(format: "%.1fs", currentTime))
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.8))
             }
+            .padding()
+            .background(
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.7)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
         }
-        .background(Color.black)
+        .cornerRadius(8)
     }
 }
 
@@ -453,6 +524,107 @@ struct MetalShaderView: UIViewRepresentable {
             
             commandBuffer.present(drawable)
             commandBuffer.commit()
+        }
+    }
+}
+
+// MARK: - Fullscreen Shader View
+
+struct FullscreenShaderView: View {
+    let shader: ShaderEntity?
+    @Binding var isPlaying: Bool
+    @Binding var currentTime: Double
+    @Binding var isPresented: Bool
+    
+    @State private var showControls: Bool = false
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            if let shader = shader {
+                MetalShaderView(
+                    shaderCode: shader.fragmentCode,
+                    isPlaying: $isPlaying,
+                    currentTime: $currentTime
+                )
+                .ignoresSafeArea()
+            }
+            
+            // Controls overlay
+            if showControls {
+                VStack {
+                    // Top bar with close button
+                    HStack {
+                        Spacer()
+                        
+                        Button {
+                            isPresented = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        .padding()
+                    }
+                    .background(
+                        LinearGradient(
+                            colors: [.black.opacity(0.5), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    
+                    Spacer()
+                    
+                    // Bottom playback controls
+                    HStack(spacing: 20) {
+                        Button {
+                            isPlaying.toggle()
+                        } label: {
+                            Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Button {
+                            currentTime = 0
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.title2)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
+                        
+                        Spacer()
+                        
+                        Text(String(format: "%.1fs", currentTime))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding()
+                    .background(
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.5)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .transition(.opacity)
+            }
+        }
+        .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            // Double tap to exit fullscreen
+            isPresented = false
+        }
+        .onTapGesture(count: 1) {
+            // Single tap to toggle controls
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showControls.toggle()
+            }
         }
     }
 }
