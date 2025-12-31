@@ -29,6 +29,7 @@
 		58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */; };
 		58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556582F050E200094CB27 /* ShaderParameter.swift */; };
 		58C5565B2F051AF60094CB27 /* ShaderParametersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5565A2F051AF60094CB27 /* ShaderParametersView.swift */; };
+		58C5565D2F0524870094CB27 /* ParameterAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5565C2F0524870094CB27 /* ParameterAutomation.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +56,7 @@
 		58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Parametric.swift; sourceTree = "<group>"; };
 		58C556582F050E200094CB27 /* ShaderParameter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderParameter.swift; sourceTree = "<group>"; };
 		58C5565A2F051AF60094CB27 /* ShaderParametersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderParametersView.swift; sourceTree = "<group>"; };
+		58C5565C2F0524870094CB27 /* ParameterAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterAutomation.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -112,6 +114,7 @@
 				0A000012291F0001000A0009 /* ShaderEntity.swift */,
 				0A000014291F0001000A0010 /* ShaderDataManager.swift */,
 				0A000016291F0001000A0011 /* BuiltInShaderLoader.swift */,
+				58C5565C2F0524870094CB27 /* ParameterAutomation.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -224,6 +227,7 @@
 				0A00000B291F0001000A0006 /* ShaderCodeEditorView.swift in Sources */,
 				0A00000D291F0001000A0007 /* NewShaderView.swift in Sources */,
 				0A00000F291F0001000A0008 /* ShaderCategory.swift in Sources */,
+				58C5565D2F0524870094CB27 /* ParameterAutomation.swift in Sources */,
 				0A000011291F0001000A0009 /* ShaderEntity.swift in Sources */,
 				0A000013291F0001000A0010 /* ShaderDataManager.swift in Sources */,
 				58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */,

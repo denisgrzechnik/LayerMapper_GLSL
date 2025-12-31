@@ -16,6 +16,7 @@ struct ShaderParametersView: View {
     @Bindable var shader: ShaderEntity
     @StateObject private var parametersVM = ShaderParametersViewModel()
     @StateObject private var aiService = AIShaderService.shared
+    @StateObject private var automationManager = ParameterAutomationManager()
     
     // AI Generation
     @State private var aiPrompt: String = ""
@@ -101,6 +102,14 @@ struct ShaderParametersView: View {
             // Initialize AI with current shader code as context
             // So AI can modify this shader instead of creating from scratch
             aiService.initializeWithShaderContext(shader.fragmentCode)
+            
+            // Setup automation playback callback
+            automationManager.onParameterUpdate = { [weak parametersVM] name, value in
+                guard let vm = parametersVM else { return }
+                if let index = vm.parameters.firstIndex(where: { $0.name == name }) {
+                    vm.parameters[index].currentValue = value
+                }
+            }
         }
         .onChange(of: shader.fragmentCode) { _, newCode in
             parametersVM.updateFromCode(newCode)
@@ -150,12 +159,32 @@ struct ShaderParametersView: View {
     
     private var slidersPanel: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header with Record and Close buttons
             HStack {
                 Text("GLSL")
                     .font(.caption.bold())
                     .foregroundColor(.gray)
+                
                 Spacer()
+                
+                // Automation status/playback indicator
+                if automationManager.hasRecording && !automationManager.isRecording && !automationManager.isCountingDown {
+                    HStack(spacing: 4) {
+                        Text(String(format: "%.1fs", automationManager.isPlaying ? automationManager.playbackTime : automationManager.recordingDuration))
+                            .font(.caption2.monospacedDigit())
+                        Text("(\(automationManager.keyframeCount))")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.gray)
+                }
+                
+                // Play/Pause button (only when recording exists)
+                if automationManager.hasRecording && !automationManager.isRecording && !automationManager.isCountingDown {
+                    playPauseButton
+                }
+                
+                // Record button (always visible)
+                recordButton
                 
                 // Close button
                 Button {
@@ -188,7 +217,10 @@ struct ShaderParametersView: View {
                             if let paramIndex = parametersVM.parameters.firstIndex(where: { $0.id == sliderParams[index].id }) {
                                 StyledSliderRow(
                                     parameter: $parametersVM.parameters[paramIndex],
-                                    color: sliderColor(for: index)
+                                    color: sliderColor(for: index),
+                                    onValueChanged: { name, value in
+                                        automationManager.recordParameterChange(name: name, value: value)
+                                    }
                                 )
                             }
                         }
@@ -209,6 +241,80 @@ struct ShaderParametersView: View {
             Color(red: 0.8, green: 0.5, blue: 0.3),   // Orange
         ]
         return colors[index % colors.count]
+    }
+    
+    // MARK: - Play/Pause Button
+    
+    private var playPauseButton: some View {
+        Button {
+            automationManager.togglePlayback()
+        } label: {
+            Image(systemName: automationManager.isPlaying ? "pause.fill" : "play.fill")
+                .font(.caption)
+                .foregroundColor(.green)
+                .padding(6)
+                .background(Color.green.opacity(0.2))
+                .clipShape(Circle())
+        }
+    }
+    
+    // MARK: - Record Button
+    
+    private var recordButton: some View {
+        Button {
+            handleRecordButtonTap()
+        } label: {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(recordButtonColor)
+                    .frame(width: 8, height: 8)
+                
+                Text(recordButtonLabel)
+                    .font(.caption2.bold())
+            }
+            .foregroundColor(recordButtonColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(recordButtonColor.opacity(0.2))
+            .cornerRadius(10)
+        }
+    }
+    
+    private var recordButtonColor: Color {
+        switch automationManager.state {
+        case .recording:
+            return .red
+        case .countdown:
+            return .orange
+        case .playing, .idle:
+            return .red
+        }
+    }
+    
+    private var recordButtonLabel: String {
+        switch automationManager.state {
+        case .recording:
+            return "STOP"
+        case .countdown(let seconds):
+            return "\(seconds)"
+        case .playing, .idle:
+            return "REC"
+        }
+    }
+    
+    private func handleRecordButtonTap() {
+        switch automationManager.state {
+        case .idle, .playing:
+            // Stop playback if playing, then start recording
+            if automationManager.isPlaying {
+                automationManager.stopPlayback()
+            }
+            automationManager.startRecordingWithCountdown()
+        case .countdown:
+            automationManager.cancelRecording()
+        case .recording:
+            automationManager.stopRecording()
+        }
     }
     
     // MARK: - Control Panels Section
@@ -408,6 +514,7 @@ struct ShaderParametersView: View {
 struct StyledSliderRow: View {
     @Binding var parameter: ShaderParameter
     let color: Color
+    var onValueChanged: ((String, Float) -> Void)? = nil
     
     var body: some View {
         GeometryReader { geometry in
@@ -435,21 +542,14 @@ struct StyledSliderRow: View {
                         .foregroundColor(.white.opacity(0.6))
                         .padding(.trailing, 10)
                 }
-                
-                // Favorite indicator
-                HStack {
-                    Spacer()
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.red.opacity(0.7))
-                        .padding(.trailing, 4)
-                }
             }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         let percentage = max(0, min(1, value.location.x / geometry.size.width))
-                        parameter.currentValue = parameter.minValue + Float(percentage) * (parameter.maxValue - parameter.minValue)
+                        let newValue = parameter.minValue + Float(percentage) * (parameter.maxValue - parameter.minValue)
+                        parameter.currentValue = newValue
+                        onValueChanged?(parameter.name, newValue)
                     }
             )
         }
