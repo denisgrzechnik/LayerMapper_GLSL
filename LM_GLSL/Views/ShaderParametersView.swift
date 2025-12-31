@@ -391,27 +391,13 @@ struct ShaderParametersView: View {
         VStack(spacing: 8) {
             // Header
             HStack {
-                Text("AI SHADER GENERATOR")
+                Text("AI SHADER")
                     .font(.caption.bold())
                     .foregroundColor(.gray)
                 
-                if aiService.hasConversationContext {
-                    Text("• Kontekst aktywny")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-                
                 Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            
-            // Provider + Key
-            HStack {
-                Text("Provider:")
-                    .font(.caption)
-                    .foregroundColor(.gray)
                 
+                // Provider picker (compact)
                 Picker("", selection: $selectedProvider) {
                     ForEach(AIProvider.allCases) { provider in
                         Text(provider.rawValue).tag(provider)
@@ -420,22 +406,7 @@ struct ShaderParametersView: View {
                 .pickerStyle(.menu)
                 .tint(.cyan)
                 
-                Spacer()
-                
-                if aiService.hasConversationContext {
-                    Button {
-                        aiService.clearConversation()
-                    } label: {
-                        HStack(spacing: 2) {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                            Text("\(aiService.conversationHistory.count / 2)")
-                            Image(systemName: "xmark.circle.fill")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
-                }
-                
+                // API Key button
                 if selectedProvider.requiresAPIKey {
                     Button {
                         showAPIKeySheet = true
@@ -446,6 +417,7 @@ struct ShaderParametersView: View {
                 }
             }
             .padding(.horizontal, 12)
+            .padding(.top, 8)
             
             // Prompt input
             TextField(promptPlaceholder, text: $aiPrompt, axis: .vertical)
