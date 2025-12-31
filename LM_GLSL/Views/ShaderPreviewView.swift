@@ -20,6 +20,9 @@ struct ShaderPreviewView: View {
     @State private var showOverlay: Bool = false
     @State private var isFullscreen: Bool = false
     
+    // Namespace for matched geometry effect
+    @Namespace private var animation
+    
     var body: some View {
         GeometryReader { geometry in
             // Calculate size to maintain 16:9 aspect ratio, full width
@@ -30,67 +33,75 @@ struct ShaderPreviewView: View {
                 // Background
                 Color.black
                 
-                // Centered preview with aspect ratio
-                ZStack {
-                    // Metal rendering view
-                    if let shader = shader {
-                        MetalShaderView(
-                            shaderCode: shader.fragmentCode,
-                            isPlaying: $isPlaying,
-                            currentTime: $currentTime
-                        )
-                        .frame(width: previewSize.width, height: previewSize.height)
-                    } else {
-                        // Placeholder when no shader selected
-                        VStack(spacing: 20) {
-                            Image(systemName: "sparkles.rectangle.stack")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            
-                            Text("Select a shader to preview")
-                                .font(.title2)
-                                .foregroundColor(.gray)
-                        }
-                        .frame(width: previewSize.width, height: previewSize.height)
-                        .background(Color(white: 0.1))
-                    }
-                    
-                    // Overlay controls - only visible when showOverlay is true
-                    if showOverlay, shader != nil {
-                        overlayControls
+                if !isFullscreen {
+                    // Normal preview with aspect ratio
+                    ZStack {
+                        // Metal rendering view
+                        if let shader = shader {
+                            MetalShaderView(
+                                shaderCode: shader.fragmentCode,
+                                isPlaying: $isPlaying,
+                                currentTime: $currentTime
+                            )
                             .frame(width: previewSize.width, height: previewSize.height)
-                            .transition(.opacity)
+                            .matchedGeometryEffect(id: "shaderView", in: animation)
+                        } else {
+                            // Placeholder when no shader selected
+                            VStack(spacing: 20) {
+                                Image(systemName: "sparkles.rectangle.stack")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray)
+                                
+                                Text("Select a shader to preview")
+                                    .font(.title2)
+                                    .foregroundColor(.gray)
+                            }
+                            .frame(width: previewSize.width, height: previewSize.height)
+                            .background(Color(white: 0.1))
+                        }
+                        
+                        // Overlay controls - only visible when showOverlay is true
+                        if showOverlay, shader != nil {
+                            overlayControls
+                                .frame(width: previewSize.width, height: previewSize.height)
+                                .transition(.opacity)
+                        }
+                        
+                        // Info panel overlay
+                        if showInfo, let shader = shader {
+                            ShaderInfoPanel(shader: shader, isPresented: $showInfo)
+                        }
                     }
-                    
-                    // Info panel overlay
-                    if showInfo, let shader = shader {
-                        ShaderInfoPanel(shader: shader, isPresented: $showInfo)
+                    .frame(width: previewSize.width, height: previewSize.height)
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) {
+                        // Double tap to toggle fullscreen with zoom animation
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            isFullscreen = true
+                        }
                     }
-                }
-                .frame(width: previewSize.width, height: previewSize.height)
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) {
-                    // Double tap to toggle fullscreen
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isFullscreen.toggle()
-                    }
-                }
-                .onTapGesture(count: 1) {
-                    // Single tap to toggle overlay
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showOverlay.toggle()
+                    .onTapGesture(count: 1) {
+                        // Single tap to toggle overlay
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showOverlay.toggle()
+                        }
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .fullScreenCover(isPresented: $isFullscreen) {
-            FullscreenShaderView(
-                shader: shader,
-                isPlaying: $isPlaying,
-                currentTime: $currentTime,
-                isPresented: $isFullscreen
-            )
+            .overlay {
+                // Fullscreen overlay with zoom animation
+                if isFullscreen {
+                    FullscreenShaderOverlay(
+                        shader: shader,
+                        isPlaying: $isPlaying,
+                        currentTime: $currentTime,
+                        isPresented: $isFullscreen,
+                        animation: animation
+                    )
+                    .transition(.scale(scale: 0.1).combined(with: .opacity))
+                }
+            }
         }
     }
     
@@ -528,13 +539,14 @@ struct MetalShaderView: UIViewRepresentable {
     }
 }
 
-// MARK: - Fullscreen Shader View
+// MARK: - Fullscreen Shader Overlay (with zoom animation)
 
-struct FullscreenShaderView: View {
+struct FullscreenShaderOverlay: View {
     let shader: ShaderEntity?
     @Binding var isPlaying: Bool
     @Binding var currentTime: Double
     @Binding var isPresented: Bool
+    var animation: Namespace.ID
     
     @State private var showControls: Bool = false
     
@@ -548,6 +560,7 @@ struct FullscreenShaderView: View {
                     isPlaying: $isPlaying,
                     currentTime: $currentTime
                 )
+                .matchedGeometryEffect(id: "shaderView", in: animation)
                 .ignoresSafeArea()
             }
             
@@ -559,7 +572,9 @@ struct FullscreenShaderView: View {
                         Spacer()
                         
                         Button {
-                            isPresented = false
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isPresented = false
+                            }
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title)
@@ -617,8 +632,10 @@ struct FullscreenShaderView: View {
         .persistentSystemOverlays(.hidden)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
-            // Double tap to exit fullscreen
-            isPresented = false
+            // Double tap to exit fullscreen with zoom animation
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                isPresented = false
+            }
         }
         .onTapGesture(count: 1) {
             // Single tap to toggle controls

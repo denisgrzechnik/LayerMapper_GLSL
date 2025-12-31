@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import MetalKit
 
 struct ShaderListView: View {
     @Environment(\.modelContext) private var modelContext
@@ -72,7 +73,7 @@ struct ShaderListView: View {
             
             // Shader list
             ScrollView {
-                VStack(spacing: 6) {
+                LazyVStack(spacing: 6) {
                     if showingFavorites && displayedShaders.isEmpty {
                         // No favorites message
                         VStack(spacing: 8) {
@@ -124,7 +125,7 @@ struct ShaderListView: View {
     }
 }
 
-// MARK: - Shader Preset Row (matching MediaSourcePickerView style)
+// MARK: - Shader Preset Row with animated thumbnail
 
 struct ShaderPresetRow: View {
     let shader: ShaderEntity
@@ -134,10 +135,10 @@ struct ShaderPresetRow: View {
     
     var body: some View {
         HStack(spacing: 10) {
-            // Thumbnail square
-            Rectangle()
-                .fill(Color(hex: shader.thumbnailColorHex)?.opacity(0.3) ?? Color(white: 0.2))
-                .frame(width: 28, height: 28)
+            // Animated shader thumbnail
+            ShaderThumbnailView(shaderCode: shader.fragmentCode)
+                .frame(width: 32, height: 32)
+                .clipped()
             
             // Shader name
             Text(shader.name)
@@ -162,6 +163,23 @@ struct ShaderPresetRow: View {
         .onTapGesture {
             onSelect()
         }
+    }
+}
+
+// MARK: - Shader Thumbnail View (small animated preview)
+
+struct ShaderThumbnailView: View {
+    let shaderCode: String
+    
+    @State private var isPlaying: Bool = true
+    @State private var currentTime: Double = 0
+    
+    var body: some View {
+        MetalShaderView(
+            shaderCode: shaderCode,
+            isPlaying: $isPlaying,
+            currentTime: $currentTime
+        )
     }
 }
 
