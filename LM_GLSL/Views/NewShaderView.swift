@@ -88,7 +88,7 @@ struct NewShaderView: View {
                 // AI Generation Section
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
-                        // Provider picker
+                        // Provider picker + conversation status
                         HStack {
                             Text("Provider:")
                                 .foregroundColor(.secondary)
@@ -101,6 +101,23 @@ struct NewShaderView: View {
                             
                             Spacer()
                             
+                            // Conversation indicator
+                            if aiService.hasConversationContext {
+                                Button {
+                                    aiService.clearConversation()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                                            .font(.caption)
+                                        Text("\(aiService.conversationHistory.count / 2)")
+                                            .font(.caption)
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.blue)
+                                }
+                            }
+                            
                             if selectedProvider.requiresAPIKey {
                                 Button {
                                     showAPIKeySheet = true
@@ -111,31 +128,45 @@ struct NewShaderView: View {
                             }
                         }
                         
-                        // Prompt input
-                        TextField("Opisz shader, np. 'kolorowa spirala z neonowym efektem'", text: $aiPrompt, axis: .vertical)
+                        // Prompt input with context hint
+                        TextField(promptPlaceholder, text: $aiPrompt, axis: .vertical)
                             .lineLimit(2...4)
                             .textFieldStyle(.roundedBorder)
                         
                         // Generate button
-                        Button {
-                            generateWithAI()
-                        } label: {
-                            HStack {
-                                if aiService.isGenerating {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "sparkles")
+                        HStack(spacing: 10) {
+                            Button {
+                                generateWithAI()
+                            } label: {
+                                HStack {
+                                    if aiService.isGenerating {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: aiService.hasConversationContext ? "arrow.triangle.2.circlepath" : "sparkles")
+                                    }
+                                    Text(generateButtonText)
                                 }
-                                Text(aiService.isGenerating ? "Generuję..." : "Generuj z AI")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color(red: 254/255, green: 20/255, blue: 77/255)) // #FE144D
+                            .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
+                            
+                            // New conversation button (only show when there's context)
+                            if aiService.hasConversationContext {
+                                Button {
+                                    aiService.clearConversation()
+                                    code = Self.defaultShaderCode
+                                } label: {
+                                    Image(systemName: "plus.circle")
+                                        .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.bordered)
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color(red: 254/255, green: 20/255, blue: 77/255)) // #FE144D
-                        .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
                         
                         // Error message
                         if let error = aiService.errorMessage {
@@ -145,7 +176,14 @@ struct NewShaderView: View {
                         }
                     }
                 } header: {
-                    Label("AI Shader Generator", systemImage: "sparkles")
+                    HStack {
+                        Label("AI Shader Generator", systemImage: "sparkles")
+                        if aiService.hasConversationContext {
+                            Text("• Kontekst aktywny")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    }
                 } footer: {
                     Text(aiFooterText)
                 }
@@ -213,6 +251,9 @@ struct NewShaderView: View {
     }
     
     private var aiFooterText: String {
+        if aiService.hasConversationContext {
+            return "💬 Kontekst aktywny - możesz modyfikować shader słowami jak 'wolniej', 'zmień kolor na czerwony' itp."
+        }
         switch selectedProvider {
         case .openAI:
             return "GPT-4o-mini: ~$0.15/1M tokenów. Wymaga klucza API z platform.openai.com"
@@ -223,26 +264,46 @@ struct NewShaderView: View {
         }
     }
     
+    private var promptPlaceholder: String {
+        if aiService.hasConversationContext {
+            return "Modyfikuj: 'wolniej', 'zmień kolor', 'dodaj blur'..."
+        }
+        return "Opisz shader, np. 'kolorowa spirala z neonowym efektem'"
+    }
+    
+    private var generateButtonText: String {
+        if aiService.isGenerating {
+            return "Generuję..."
+        }
+        return aiService.hasConversationContext ? "Modyfikuj" : "Generuj z AI"
+    }
+    
     // MARK: - AI Generation
     
     private func generateWithAI() {
+        let promptForName = aiPrompt // Save before clearing
         Task {
-            if let generatedCode = await aiService.generateShader(prompt: aiPrompt, provider: selectedProvider) {
+            // Pass current code for context when modifying
+            let currentCode = aiService.hasConversationContext ? code : nil
+            if let generatedCode = await aiService.generateShader(prompt: aiPrompt, currentCode: currentCode, provider: selectedProvider) {
                 code = generatedCode
                 selectedTemplate = .blank // Reset template selection
                 
-                // Auto-fill name if empty
-                if name.isEmpty {
-                    name = aiPrompt.prefix(30).trimmingCharacters(in: .whitespaces)
-                    if aiPrompt.count > 30 {
-                        name += "..."
-                    }
+                // Auto-fill name if empty (only on first generation)
+                if name.isEmpty && !aiService.hasConversationContext {
+                    let trimmed = promptForName.prefix(30).trimmingCharacters(in: .whitespaces)
+                    name = trimmed + (promptForName.count > 30 ? "..." : "")
                 }
+                
+                aiPrompt = "" // Clear prompt after successful generation
             }
         }
     }
     
     private func createShader() {
+        // Clear conversation when creating shader
+        aiService.clearConversation()
+        
         let shader = ShaderEntity(
             name: name,
             fragmentCode: code,

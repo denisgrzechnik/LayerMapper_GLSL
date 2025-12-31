@@ -48,6 +48,13 @@ enum AIProvider: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Chat Message for Context
+
+struct ChatMessage: Codable {
+    let role: String  // "system", "user", "assistant"
+    let content: String
+}
+
 // MARK: - AI Shader Service
 
 @MainActor
@@ -56,11 +63,48 @@ class AIShaderService: ObservableObject {
     
     @Published var isGenerating = false
     @Published var errorMessage: String?
+    @Published var conversationHistory: [ChatMessage] = []
     
     // Store API keys in UserDefaults (for demo - use Keychain in production!)
     private let userDefaults = UserDefaults.standard
     
+    private let systemPrompt = """
+    You are a Metal shader code generator. Generate ONLY the shader body code (no function declaration).
+    
+    Available variables:
+    - uv: float2 - UV coordinates (0 to 1)
+    - iTime: float - Time in seconds
+    - iResolution: float2 - Resolution
+    
+    Available functions: sin, cos, tan, abs, floor, fract, mod, pow, sqrt, length, distance, dot, cross, normalize, mix, smoothstep, clamp, min, max
+    
+    Rules:
+    1. Return ONLY the shader code body, nothing else
+    2. Must end with: return float4(col, 1.0); where col is float3
+    3. Use Metal Shading Language syntax (float2, float3, float4)
+    4. Keep code concise and efficient
+    5. No comments unless essential
+    6. No markdown formatting, no code blocks
+    7. When user asks to modify the shader, keep the existing logic and only change what they ask for
+    
+    Example output for "blue gradient":
+    float3 col = mix(float3(0.0, 0.0, 0.2), float3(0.0, 0.5, 1.0), uv.y);
+    return float4(col, 1.0);
+    """
+    
     private init() {}
+    
+    // MARK: - Conversation Management
+    
+    /// Clear conversation history to start fresh
+    func clearConversation() {
+        conversationHistory.removeAll()
+    }
+    
+    /// Check if we have an ongoing conversation
+    var hasConversationContext: Bool {
+        !conversationHistory.isEmpty
+    }
     
     // MARK: - API Key Management
     
@@ -74,7 +118,13 @@ class AIShaderService: ObservableObject {
     
     // MARK: - Shader Generation
     
-    func generateShader(prompt: String, provider: AIProvider) async -> String? {
+    /// Generate shader with conversation context
+    /// - Parameters:
+    ///   - prompt: User's request
+    ///   - currentCode: Current shader code (for context when modifying)
+    ///   - provider: AI provider to use
+    /// - Returns: Generated shader code or nil on error
+    func generateShader(prompt: String, currentCode: String? = nil, provider: AIProvider) async -> String? {
         isGenerating = true
         errorMessage = nil
         
@@ -88,35 +138,32 @@ class AIShaderService: ObservableObject {
             }
         }
         
-        let systemPrompt = """
-        You are a Metal shader code generator. Generate ONLY the shader body code (no function declaration).
-        
-        Available variables:
-        - uv: float2 - UV coordinates (0 to 1)
-        - iTime: float - Time in seconds
-        - iResolution: float2 - Resolution
-        
-        Available functions: sin, cos, tan, abs, floor, fract, mod, pow, sqrt, length, distance, dot, cross, normalize, mix, smoothstep, clamp, min, max
-        
-        Rules:
-        1. Return ONLY the shader code body, nothing else
-        2. Must end with: return float4(col, 1.0); where col is float3
-        3. Use Metal Shading Language syntax (float2, float3, float4)
-        4. Keep code concise and efficient
-        5. No comments unless essential
-        6. No markdown formatting, no code blocks
-        
-        Example output for "blue gradient":
-        float3 col = mix(float3(0.0, 0.0, 0.2), float3(0.0, 0.5, 1.0), uv.y);
-        return float4(col, 1.0);
-        """
+        // Build user message with context
+        var userMessage = prompt
+        if let code = currentCode, hasConversationContext {
+            userMessage = "Current shader code:\n```\n\(code)\n```\n\nModification request: \(prompt)"
+        } else if !hasConversationContext {
+            userMessage = "Generate Metal shader code for: \(prompt)"
+        }
         
         do {
             switch provider {
             case .ollama:
-                return try await generateWithOllama(prompt: prompt, systemPrompt: systemPrompt)
+                let result = try await generateWithOllama(prompt: userMessage)
+                if let code = result {
+                    // Add to conversation history
+                    conversationHistory.append(ChatMessage(role: "user", content: userMessage))
+                    conversationHistory.append(ChatMessage(role: "assistant", content: code))
+                }
+                return result
             case .openAI, .groq:
-                return try await generateWithOpenAICompatible(prompt: prompt, systemPrompt: systemPrompt, provider: provider)
+                let result = try await generateWithOpenAICompatible(prompt: userMessage, provider: provider)
+                if let code = result {
+                    // Add to conversation history
+                    conversationHistory.append(ChatMessage(role: "user", content: userMessage))
+                    conversationHistory.append(ChatMessage(role: "assistant", content: code))
+                }
+                return result
             }
         } catch {
             errorMessage = "Błąd: \(error.localizedDescription)"
@@ -126,7 +173,7 @@ class AIShaderService: ObservableObject {
     
     // MARK: - OpenAI Compatible API (OpenAI, Groq)
     
-    private func generateWithOpenAICompatible(prompt: String, systemPrompt: String, provider: AIProvider) async throws -> String? {
+    private func generateWithOpenAICompatible(prompt: String, provider: AIProvider) async throws -> String? {
         guard let apiKey = getAPIKey(for: provider) else { return nil }
         guard let url = URL(string: provider.baseURL) else { return nil }
         
@@ -136,12 +183,22 @@ class AIShaderService: ObservableObject {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 60
         
+        // Build messages array with conversation history
+        var messages: [[String: String]] = [
+            ["role": "system", "content": systemPrompt]
+        ]
+        
+        // Add conversation history
+        for message in conversationHistory {
+            messages.append(["role": message.role, "content": message.content])
+        }
+        
+        // Add current prompt
+        messages.append(["role": "user", "content": prompt])
+        
         let body: [String: Any] = [
             "model": provider.modelName,
-            "messages": [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": "Generate Metal shader code for: \(prompt)"]
-            ],
+            "messages": messages,
             "max_tokens": 1000,
             "temperature": 0.7
         ]
@@ -176,7 +233,7 @@ class AIShaderService: ObservableObject {
     
     // MARK: - Ollama Local API
     
-    private func generateWithOllama(prompt: String, systemPrompt: String) async throws -> String? {
+    private func generateWithOllama(prompt: String) async throws -> String? {
         guard let url = URL(string: AIProvider.ollama.baseURL) else { return nil }
         
         var request = URLRequest(url: url)
@@ -184,9 +241,17 @@ class AIShaderService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 120 // Ollama może być wolniejsze
         
+        // Build context from conversation history
+        var fullPrompt = systemPrompt + "\n\n"
+        for message in conversationHistory {
+            let roleLabel = message.role == "user" ? "User" : "Assistant"
+            fullPrompt += "\(roleLabel): \(message.content)\n\n"
+        }
+        fullPrompt += "User: \(prompt)"
+        
         let body: [String: Any] = [
             "model": AIProvider.ollama.modelName,
-            "prompt": "\(systemPrompt)\n\nUser request: \(prompt)",
+            "prompt": fullPrompt,
             "stream": false
         ]
         
