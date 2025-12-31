@@ -130,6 +130,26 @@ class AIShaderService: ObservableObject {
         conversationHistory.removeAll()
     }
     
+    /// Initialize conversation with existing shader code as context
+    /// This allows AI to modify the shader instead of creating from scratch
+    func initializeWithShaderContext(_ shaderCode: String) {
+        // Clear previous conversation
+        conversationHistory.removeAll()
+        
+        // Add the current shader as assistant's previous response
+        // This makes AI think it generated this shader and can now modify it
+        let initialUserMessage = ChatMessage(
+            role: "user",
+            content: "Generate a Metal shader"
+        )
+        let shaderAsResponse = ChatMessage(
+            role: "assistant",
+            content: shaderCode
+        )
+        
+        conversationHistory = [initialUserMessage, shaderAsResponse]
+    }
+    
     /// Check if we have an ongoing conversation
     var hasConversationContext: Bool {
         !conversationHistory.isEmpty

@@ -40,7 +40,7 @@ struct ShaderParametersView: View {
             if isLandscape {
                 // Landscape layout (4 quadrants)
                 HStack(spacing: 0) {
-                    // Left side
+                    // Left side - Preview (70%)
                     VStack(spacing: 0) {
                         // Top-left: Preview
                         shaderPreviewPanel
@@ -50,9 +50,9 @@ struct ShaderParametersView: View {
                         controlPanelsSection
                             .frame(height: geometry.size.height * 0.45)
                     }
-                    .frame(width: geometry.size.width * 0.5)
+                    .frame(width: geometry.size.width * 0.7)
                     
-                    // Right side
+                    // Right side - Controls (30%)
                     VStack(spacing: 0) {
                         // Top-right: Sliders
                         slidersPanel
@@ -62,7 +62,7 @@ struct ShaderParametersView: View {
                         aiGeneratorPanel
                             .frame(height: geometry.size.height * 0.4)
                     }
-                    .frame(width: geometry.size.width * 0.5)
+                    .frame(width: geometry.size.width * 0.3)
                 }
             } else {
                 // Portrait layout (scrollable)
@@ -98,6 +98,9 @@ struct ShaderParametersView: View {
         }
         .onAppear {
             parametersVM.updateFromCode(shader.fragmentCode)
+            // Initialize AI with current shader code as context
+            // So AI can modify this shader instead of creating from scratch
+            aiService.initializeWithShaderContext(shader.fragmentCode)
         }
         .onChange(of: shader.fragmentCode) { _, newCode in
             parametersVM.updateFromCode(newCode)
@@ -153,6 +156,19 @@ struct ShaderParametersView: View {
                     .font(.caption.bold())
                     .foregroundColor(.gray)
                 Spacer()
+                
+                // Close button
+                Button {
+                    saveChanges()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(6)
+                        .background(Color(white: 0.2))
+                        .clipShape(Circle())
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -238,8 +254,6 @@ struct ShaderParametersView: View {
         VStack(spacing: 8) {
             // Header
             HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
                 Text("AI SHADER GENERATOR")
                     .font(.caption.bold())
                     .foregroundColor(.gray)
@@ -358,24 +372,22 @@ struct ShaderParametersView: View {
     }
     
     private var promptPlaceholder: String {
-        aiService.hasConversationContext
-            ? "Modyfikuj: 'wolniej', 'zmień kolor', 'dodaj blur'..."
-            : "Opisz modyfikację shadera..."
+        "Modyfikuj: 'wolniej', 'zmień kolor na niebieski', 'dodaj slider'..."
     }
     
     private var generateButtonText: String {
         if aiService.isGenerating { return "Generuję..." }
-        return aiService.hasConversationContext ? "Modyfikuj" : "Generuj"
+        return "Modyfikuj"
     }
     
     // MARK: - Actions
     
     private func generateWithAI() {
         Task {
-            let currentCode = aiService.hasConversationContext ? shader.fragmentCode : nil
+            // Always pass current code - we're modifying existing shader
             if let generatedCode = await aiService.generateShader(
                 prompt: aiPrompt,
-                currentCode: currentCode,
+                currentCode: shader.fragmentCode,
                 provider: selectedProvider
             ) {
                 shader.fragmentCode = generatedCode
