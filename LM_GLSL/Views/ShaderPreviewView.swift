@@ -130,6 +130,11 @@ struct ShaderPreviewView: View {
         // Calculate time since shader started
         let elapsed = now.timeIntervalSince(shaderStartTime)
         
+        // Debug: log every 2 seconds
+        if Int(elapsed * 10) % 20 == 0 {
+            print("📤 GLSL sending: params=\(paramValues), time=\(String(format: "%.2f", elapsed))")
+        }
+        
         // Send to sync service
         syncService.updateParameters(paramValues, time: elapsed)
     }

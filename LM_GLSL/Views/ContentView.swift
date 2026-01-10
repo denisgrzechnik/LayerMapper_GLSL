@@ -132,6 +132,7 @@ struct ContentView: View {
         .onChange(of: syncService.isAdvertising) { oldValue, newValue in
             // When broadcasting starts, also start parameter streaming
             if newValue {
+                broadcastCurrentShader()  // Broadcast current shader first
                 syncService.startParameterStreaming()
             } else {
                 syncService.stopParameterStreaming()
