@@ -21,6 +21,13 @@ struct ContentView: View {
     @State private var showingParametersView: Bool = false
     @State private var isFullscreen: Bool = false
     
+    // View mode: Preview or Grid
+    @State private var viewMode: ViewMode = .preview
+    
+    // Grid view specific states
+    @State private var selectedFolder: ShaderFolder?
+    @State private var selectedGridCategory: ShaderCategory?
+    
     // Shader Sync Service
     @StateObject private var syncService = ShaderSyncService()
     
@@ -49,41 +56,103 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Left side - Shader Preview (80%)
-                    ShaderPreviewView(
-                        shader: selectedShader,
-                        isFullscreen: $isFullscreen,
-                        syncService: syncService,
-                        parametersVM: parametersVM
-                    )
-                    .frame(width: geometry.size.width * 0.8)
-                    
-                    Divider()
-                    
-                    // Right side - Shader List or Customization Panel (20%)
-                    Group {
-                        if isCustomizing, let shader = selectedShader {
-                            ShaderCustomizeView(
-                                shader: shader,
-                                parametersVM: parametersVM,
-                                isCustomizing: $isCustomizing,
-                                showingCodeEditor: $showingCodeEditor
-                            )
-                        } else {
-                            ShaderListView(
-                                shaders: filteredShaders,
+                let isLandscape = geometry.size.width > geometry.size.height
+                
+                // In portrait mode, force grid view
+                let effectiveViewMode: ViewMode = isLandscape ? viewMode : .grid
+                
+                if effectiveViewMode == .preview {
+                    // Preview mode - always horizontal layout
+                    HStack(spacing: 0) {
+                        // Left side - Shader Preview (80%)
+                        ShaderPreviewView(
+                            shader: selectedShader,
+                            isFullscreen: $isFullscreen,
+                            syncService: syncService,
+                            parametersVM: parametersVM
+                        )
+                        .frame(width: geometry.size.width * 0.8)
+                        
+                        Divider()
+                        
+                        // Right side - Shader List or Customization Panel (20%)
+                        Group {
+                            if isCustomizing, let shader = selectedShader {
+                                ShaderCustomizeView(
+                                    shader: shader,
+                                    parametersVM: parametersVM,
+                                    isCustomizing: $isCustomizing,
+                                    showingCodeEditor: $showingCodeEditor
+                                )
+                            } else {
+                                ShaderListView(
+                                    shaders: filteredShaders,
+                                    selectedShader: $selectedShader,
+                                    selectedCategory: $selectedCategory,
+                                    searchText: $searchText,
+                                    isCustomizing: $isCustomizing,
+                                    showingNewShaderSheet: $showingNewShaderSheet,
+                                    showingParametersView: $showingParametersView,
+                                    viewMode: $viewMode,
+                                    syncService: syncService
+                                )
+                            }
+                        }
+                        .frame(width: geometry.size.width * 0.2)
+                    }
+                } else {
+                    // Grid mode - layout depends on orientation
+                    if isLandscape {
+                        // Landscape: panel on the right
+                        HStack(spacing: 0) {
+                            ShaderGridMainView(
+                                shaders: allShaders,
                                 selectedShader: $selectedShader,
-                                selectedCategory: $selectedCategory,
-                                searchText: $searchText,
-                                isCustomizing: $isCustomizing,
-                                showingNewShaderSheet: $showingNewShaderSheet,
                                 showingParametersView: $showingParametersView,
+                                selectedFolder: selectedFolder,
+                                selectedCategory: selectedGridCategory
+                            )
+                            .frame(width: geometry.size.width * 0.8)
+                            
+                            Divider()
+                            
+                            FolderCategoryPanel(
+                                selectedFolder: $selectedFolder,
+                                selectedCategory: $selectedGridCategory,
+                                showingNewShaderSheet: $showingNewShaderSheet,
+                                viewMode: $viewMode,
+                                showingParametersView: $showingParametersView,
+                                selectedShader: selectedShader,
                                 syncService: syncService
                             )
+                            .frame(width: geometry.size.width * 0.2)
+                        }
+                    } else {
+                        // Portrait: compact panel on the bottom (20% height)
+                        VStack(spacing: 0) {
+                            ShaderGridMainView(
+                                shaders: allShaders,
+                                selectedShader: $selectedShader,
+                                showingParametersView: $showingParametersView,
+                                selectedFolder: selectedFolder,
+                                selectedCategory: selectedGridCategory
+                            )
+                            
+                            Divider()
+                            
+                            // Compact horizontal panel: buttons left, folders/categories right
+                            PortraitBottomPanel(
+                                selectedFolder: $selectedFolder,
+                                selectedCategory: $selectedGridCategory,
+                                showingNewShaderSheet: $showingNewShaderSheet,
+                                viewMode: $viewMode,
+                                showingParametersView: $showingParametersView,
+                                selectedShader: selectedShader,
+                                syncService: syncService
+                            )
+                            .frame(height: min(geometry.size.height * 0.22, 170))
                         }
                     }
-                    .frame(width: geometry.size.width * 0.2)
                 }
             }
             
@@ -254,5 +323,5 @@ struct FullscreenShaderOverlayTopLevel: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [ShaderEntity.self, ShaderParameterEntity.self], inMemory: true)
+        .modelContainer(for: [ShaderEntity.self, ShaderParameterEntity.self, ShaderFolder.self], inMemory: true)
 }

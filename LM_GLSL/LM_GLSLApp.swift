@@ -17,7 +17,8 @@ struct LM_GLSLApp: App {
         let schema = Schema([
             ShaderEntity.self,
             ShaderParameterEntity.self,
-            TagEntity.self
+            TagEntity.self,
+            ShaderFolder.self
         ])
         
         let modelConfiguration = ModelConfiguration(

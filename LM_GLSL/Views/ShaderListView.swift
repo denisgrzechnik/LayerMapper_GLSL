@@ -19,6 +19,7 @@ struct ShaderListView: View {
     @Binding var isCustomizing: Bool
     @Binding var showingNewShaderSheet: Bool
     @Binding var showingParametersView: Bool
+    @Binding var viewMode: ViewMode
     
     // Shader sync service
     @ObservedObject var syncService: ShaderSyncService
@@ -121,8 +122,32 @@ struct ShaderListView: View {
                     }
                 }
                 
-                // Remaining 5 empty slots
-                ForEach(0..<5, id: \.self) { _ in
+                // Remaining 5 empty slots - first one is view mode toggle
+                
+                // View mode toggle button (Preview/Grid)
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        viewMode = viewMode == .preview ? .grid : .preview
+                    }
+                }) {
+                    ZStack {
+                        Rectangle()
+                            .fill(viewMode == .grid ? Color.blue.opacity(0.3) : Color(white: 0.1))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(viewMode == .grid ? Color.blue : Color(white: 0.2), lineWidth: viewMode == .grid ? 2 : 1)
+                            )
+                            .cornerRadius(6)
+                        
+                        Image(systemName: viewMode == .grid ? "rectangle.center.inset.filled" : "square.grid.3x3.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(viewMode == .grid ? .blue : Color(white: 0.4))
+                    }
+                }
+                
+                // Remaining 4 empty slots
+                ForEach(0..<4, id: \.self) { _ in
                     emptySlotButton
                 }
             }
@@ -283,6 +308,7 @@ struct ShaderThumbnailView: View {
         isCustomizing: .constant(false),
         showingNewShaderSheet: .constant(false),
         showingParametersView: .constant(false),
+        viewMode: .constant(.preview),
         syncService: ShaderSyncService()
     )
     .modelContainer(for: ShaderEntity.self, inMemory: true)

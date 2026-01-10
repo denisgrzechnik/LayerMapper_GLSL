@@ -33,6 +33,11 @@
 		58C556612F0536EC0094CB27 /* ShaderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556602F0536EC0094CB27 /* ShaderSettingsView.swift */; };
 		58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562082F0F38940094CB27 /* ShaderSyncService.swift */; };
 		58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562072F0F38940094CB27 /* ShaderSyncModels.swift */; };
+		58C562132F129D570094CB27 /* ShaderFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562122F129D570094CB27 /* ShaderFolder.swift */; };
+		58C562152F129D9B0094CB27 /* ShaderGridMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562142F129D9B0094CB27 /* ShaderGridMainView.swift */; };
+		58C562172F129DD80094CB27 /* FolderCategoryPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */; };
+		58C562192F129E040094CB27 /* ViewMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562182F129E040094CB27 /* ViewMode.swift */; };
+		58C5621B2F12B4E90094CB27 /* PortraitBottomPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +68,11 @@
 		58C556602F0536EC0094CB27 /* ShaderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSettingsView.swift; sourceTree = "<group>"; };
 		58C562072F0F38940094CB27 /* ShaderSyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSyncModels.swift; sourceTree = "<group>"; };
 		58C562082F0F38940094CB27 /* ShaderSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSyncService.swift; sourceTree = "<group>"; };
+		58C562122F129D570094CB27 /* ShaderFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderFolder.swift; sourceTree = "<group>"; };
+		58C562142F129D9B0094CB27 /* ShaderGridMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderGridMainView.swift; sourceTree = "<group>"; };
+		58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCategoryPanel.swift; sourceTree = "<group>"; };
+		58C562182F129E040094CB27 /* ViewMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewMode.swift; sourceTree = "<group>"; };
+		58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortraitBottomPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -109,6 +119,9 @@
 				0A00000A291F0001000A0005 /* ShaderCustomizeView.swift */,
 				0A00000C291F0001000A0006 /* ShaderCodeEditorView.swift */,
 				0A00000E291F0001000A0007 /* NewShaderView.swift */,
+				58C562142F129D9B0094CB27 /* ShaderGridMainView.swift */,
+				58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */,
+				58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -123,6 +136,8 @@
 				0A000014291F0001000A0010 /* ShaderDataManager.swift */,
 				0A000016291F0001000A0011 /* BuiltInShaderLoader.swift */,
 				58C5565C2F0524870094CB27 /* ParameterAutomation.swift */,
+				58C562122F129D570094CB27 /* ShaderFolder.swift */,
+				58C562182F129E040094CB27 /* ViewMode.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -235,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */,
+				58C562152F129D9B0094CB27 /* ShaderGridMainView.swift in Sources */,
 				58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */,
 				0A000001291F0001000A0001 /* LM_GLSLApp.swift in Sources */,
 				0A000003291F0001000A0002 /* ContentView.swift in Sources */,
@@ -247,15 +263,19 @@
 				58C556612F0536EC0094CB27 /* ShaderSettingsView.swift in Sources */,
 				0A00000D291F0001000A0007 /* NewShaderView.swift in Sources */,
 				0A00000F291F0001000A0008 /* ShaderCategory.swift in Sources */,
+				58C562192F129E040094CB27 /* ViewMode.swift in Sources */,
 				58C5565D2F0524870094CB27 /* ParameterAutomation.swift in Sources */,
 				58C5565F2F0536C80094CB27 /* ShaderParametersView.swift in Sources */,
 				0A000011291F0001000A0009 /* ShaderEntity.swift in Sources */,
 				0A000013291F0001000A0010 /* ShaderDataManager.swift in Sources */,
+				58C562172F129DD80094CB27 /* FolderCategoryPanel.swift in Sources */,
 				58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */,
+				58C562132F129D570094CB27 /* ShaderFolder.swift in Sources */,
 				0A000015291F0001000A0011 /* BuiltInShaderLoader.swift in Sources */,
 				0A000017291F0001000A0012 /* ShaderCodes_Part1.swift in Sources */,
 				0A000019291F0001000A0013 /* ShaderCodes_Part2.swift in Sources */,
 				0A00001B291F0001000A0014 /* ShaderCodes_Part3.swift in Sources */,
+				58C5621B2F12B4E90094CB27 /* PortraitBottomPanel.swift in Sources */,
 				0A00001D291F0001000A0015 /* ShaderCodes_Part4.swift in Sources */,
 				0A00001F291F0001000A0016 /* ShaderCodes_Part5.swift in Sources */,
 				0A000021291F0001000A0017 /* Color+Hex.swift in Sources */,
