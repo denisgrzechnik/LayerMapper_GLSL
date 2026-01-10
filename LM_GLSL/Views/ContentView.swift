@@ -20,6 +20,10 @@ struct ContentView: View {
     @State private var showingCodeEditor: Bool = false
     @State private var showingParametersView: Bool = false
     @State private var isFullscreen: Bool = false
+    @State private var parametersNeedRefresh: Bool = false
+    
+    // Shader Sync Service
+    @StateObject private var syncService = ShaderSyncService()
     
     private var filteredShaders: [ShaderEntity] {
         var result = allShaders
@@ -45,8 +49,13 @@ struct ContentView: View {
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     // Left side - Shader Preview (80%)
-                    ShaderPreviewView(shader: selectedShader, isFullscreen: $isFullscreen)
-                        .frame(width: geometry.size.width * 0.8)
+                    ShaderPreviewView(
+                        shader: selectedShader,
+                        isFullscreen: $isFullscreen,
+                        syncService: syncService,
+                        refreshTrigger: $parametersNeedRefresh
+                    )
+                    .frame(width: geometry.size.width * 0.8)
                     
                     Divider()
                     
@@ -66,7 +75,8 @@ struct ContentView: View {
                                 searchText: $searchText,
                                 isCustomizing: $isCustomizing,
                                 showingNewShaderSheet: $showingNewShaderSheet,
-                                showingParametersView: $showingParametersView
+                                showingParametersView: $showingParametersView,
+                                syncService: syncService
                             )
                         }
                     }
@@ -99,7 +109,10 @@ struct ContentView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showingParametersView) {
+        .fullScreenCover(isPresented: $showingParametersView, onDismiss: {
+            // Force refresh shader parameters after editing
+            parametersNeedRefresh = true
+        }) {
             if let shader = selectedShader {
                 ShaderParametersView(shader: shader)
             }
@@ -109,7 +122,49 @@ struct ContentView: View {
             if selectedShader == nil {
                 selectedShader = allShaders.first
             }
+            // Note: Sync service is NOT started automatically
+            // User must tap broadcast button to start
         }
+        .onChange(of: selectedShader) { oldValue, newValue in
+            // Broadcast shader change
+            broadcastCurrentShader()
+        }
+        .onChange(of: syncService.isAdvertising) { oldValue, newValue in
+            // When broadcasting starts, also start parameter streaming
+            if newValue {
+                syncService.startParameterStreaming()
+            } else {
+                syncService.stopParameterStreaming()
+            }
+        }
+    }
+    
+    // MARK: - Shader Sync
+    
+    private func broadcastCurrentShader() {
+        guard let shader = selectedShader else { return }
+        
+        // Convert parameters from ShaderParameterEntity to SyncShaderParameter
+        let syncParams = (shader.parameters ?? []).map { param in
+            SyncShaderParameter(
+                id: param.id,
+                name: param.name,
+                displayName: param.displayName,
+                type: param.parameterType == "bool" ? "toggle" : "slider",
+                minValue: param.minValue,
+                maxValue: param.maxValue,
+                currentValue: param.floatValue
+            )
+        }
+        
+        syncService.broadcastShader(
+            shaderId: shader.id,
+            shaderName: shader.name,
+            shaderCategory: shader.category.rawValue,
+            fragmentCode: shader.fragmentCode,
+            vertexCode: shader.vertexCode,
+            parameters: syncParams
+        )
     }
 }
 

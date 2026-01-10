@@ -20,6 +20,9 @@ struct ShaderListView: View {
     @Binding var showingNewShaderSheet: Bool
     @Binding var showingParametersView: Bool
     
+    // Shader sync service
+    @ObservedObject var syncService: ShaderSyncService
+    
     @State private var showingFavorites: Bool = false
     
     // Filtered shaders based on favorites
@@ -84,9 +87,42 @@ struct ShaderListView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
             
-            // 6 empty slots - 2 rows x 3 columns
+            // 6 slots - first one is broadcast toggle, rest are empty
             LazyVGrid(columns: slotColumns, spacing: 6) {
-                ForEach(0..<6, id: \.self) { _ in
+                // Broadcast toggle button (first slot)
+                Button(action: {
+                    if syncService.isAdvertising {
+                        syncService.stop()
+                    } else {
+                        syncService.start()
+                    }
+                }) {
+                    ZStack {
+                        Rectangle()
+                            .fill(syncService.isAdvertising ? Color.green.opacity(0.3) : Color(white: 0.1))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(syncService.isAdvertising ? Color.green : Color(white: 0.2), lineWidth: syncService.isAdvertising ? 2 : 1)
+                            )
+                            .cornerRadius(6)
+                        
+                        VStack(spacing: 4) {
+                            Image(systemName: syncService.isAdvertising ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
+                                .font(.system(size: 16))
+                                .foregroundColor(syncService.isAdvertising ? .green : Color(white: 0.4))
+                            
+                            if syncService.isConnected && syncService.connectedReceivers.count > 0 {
+                                Text("\(syncService.connectedReceivers.count)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    }
+                }
+                
+                // Remaining 5 empty slots
+                ForEach(0..<5, id: \.self) { _ in
                     emptySlotButton
                 }
             }
@@ -246,7 +282,8 @@ struct ShaderThumbnailView: View {
         searchText: .constant(""),
         isCustomizing: .constant(false),
         showingNewShaderSheet: .constant(false),
-        showingParametersView: .constant(false)
+        showingParametersView: .constant(false),
+        syncService: ShaderSyncService()
     )
     .modelContainer(for: ShaderEntity.self, inMemory: true)
 }

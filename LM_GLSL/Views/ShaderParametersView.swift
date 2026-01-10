@@ -117,6 +117,16 @@ struct ShaderParametersView: View {
         }
         .onAppear {
             parametersVM.updateFromCode(shader.fragmentCode)
+            
+            // Apply saved values from ShaderParameterEntity (SwiftData)
+            if let savedParams = shader.parameters {
+                for savedParam in savedParams {
+                    if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
+                        parametersVM.parameters[index].currentValue = savedParam.floatValue
+                    }
+                }
+            }
+            
             // Initialize AI with current shader code as context
             aiService.initializeWithShaderContext(shader.fragmentCode)
             
@@ -132,7 +142,8 @@ struct ShaderParametersView: View {
             }
         }
         .onDisappear {
-            // Save automation when leaving
+            // Save parameters and automation when leaving
+            saveChanges()
             shader.automationData = automationManager.exportToData()
             try? modelContext.save()
         }
@@ -515,8 +526,35 @@ struct ShaderParametersView: View {
     }
     
     private func saveChanges() {
-        // Save parameter values back to shader if needed
+        // Save parameter values from parametersVM back to shader.parameters (SwiftData)
+        for param in parametersVM.parameters {
+            // Find or create matching ShaderParameterEntity
+            if let existingParam = shader.parameters?.first(where: { $0.name == param.name }) {
+                // Update existing parameter
+                existingParam.floatValue = param.currentValue
+                existingParam.defaultValue = param.defaultValue
+                existingParam.minValue = param.minValue
+                existingParam.maxValue = param.maxValue
+            } else {
+                // Create new parameter entity
+                let newEntity = ShaderParameterEntity(
+                    name: param.name,
+                    displayName: param.displayName,
+                    floatValue: param.currentValue,
+                    minValue: param.minValue,
+                    maxValue: param.maxValue,
+                    defaultValue: param.defaultValue
+                )
+                newEntity.shader = shader
+                if shader.parameters == nil {
+                    shader.parameters = []
+                }
+                shader.parameters?.append(newEntity)
+            }
+        }
+        
         try? modelContext.save()
+        print("💾 Saved \(parametersVM.parameters.count) parameters to ShaderEntity")
     }
 }
 

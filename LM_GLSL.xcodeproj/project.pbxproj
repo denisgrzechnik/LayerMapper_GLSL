@@ -31,6 +31,8 @@
 		58C5565D2F0524870094CB27 /* ParameterAutomation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5565C2F0524870094CB27 /* ParameterAutomation.swift */; };
 		58C5565F2F0536C80094CB27 /* ShaderParametersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5565E2F0536C80094CB27 /* ShaderParametersView.swift */; };
 		58C556612F0536EC0094CB27 /* ShaderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556602F0536EC0094CB27 /* ShaderSettingsView.swift */; };
+		58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562082F0F38940094CB27 /* ShaderSyncService.swift */; };
+		58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562072F0F38940094CB27 /* ShaderSyncModels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +61,8 @@
 		58C5565C2F0524870094CB27 /* ParameterAutomation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParameterAutomation.swift; sourceTree = "<group>"; };
 		58C5565E2F0536C80094CB27 /* ShaderParametersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderParametersView.swift; sourceTree = "<group>"; };
 		58C556602F0536EC0094CB27 /* ShaderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSettingsView.swift; sourceTree = "<group>"; };
+		58C562072F0F38940094CB27 /* ShaderSyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSyncModels.swift; sourceTree = "<group>"; };
+		58C562082F0F38940094CB27 /* ShaderSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderSyncService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +93,7 @@
 				0A0000FB291F0001000A0001 /* Shaders */,
 				0A0000FC291F0001000A0001 /* Extensions */,
 				0A000024291F0001000A0018 /* Assets.xcassets */,
+				58C562092F0F38940094CB27 /* Sync */,
 			);
 			path = LM_GLSL;
 			sourceTree = "<group>";
@@ -149,6 +154,15 @@
 				0A000000291F0001000A0001 /* LM_GLSL.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		58C562092F0F38940094CB27 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				58C562072F0F38940094CB27 /* ShaderSyncModels.swift */,
+				58C562082F0F38940094CB27 /* ShaderSyncService.swift */,
+			);
+			path = Sync;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -220,6 +234,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */,
+				58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */,
 				0A000001291F0001000A0001 /* LM_GLSLApp.swift in Sources */,
 				0A000003291F0001000A0002 /* ContentView.swift in Sources */,
 				58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */,
@@ -376,18 +392,16 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U9759WPUN5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LM_GLSL/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.layermapper.LM-GLSL";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mobile.layermapper.glsl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -405,18 +419,16 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U9759WPUN5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LM_GLSL/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.layermapper.LM-GLSL";
+				PRODUCT_BUNDLE_IDENTIFIER = com.mobile.layermapper.glsl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

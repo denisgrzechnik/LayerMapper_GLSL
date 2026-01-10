@@ -11,6 +11,8 @@ import MetalKit
 struct ShaderPreviewView: View {
     let shader: ShaderEntity?
     @Binding var isFullscreen: Bool
+    var syncService: ShaderSyncService?
+    @Binding var refreshTrigger: Bool
     
     // HDMI output aspect ratio (16:9)
     private let hdmiAspectRatio: CGFloat = 16.0 / 9.0
@@ -19,6 +21,8 @@ struct ShaderPreviewView: View {
     @State private var currentTime: Double = 0
     @State private var showInfo: Bool = false
     @State private var showOverlay: Bool = false
+    @State private var shaderStartTime: Date = Date()
+    @State private var lastSyncTime: Date = Date.distantPast
     
     // Automation & Parameters
     @StateObject private var automationManager = ParameterAutomationManager()
@@ -91,10 +95,51 @@ struct ShaderPreviewView: View {
         }
         .onChange(of: shader?.id) { _, _ in
             loadShaderData()
+            shaderStartTime = Date()
+        }
+        .onChange(of: refreshTrigger) { _, needsRefresh in
+            if needsRefresh {
+                loadShaderData()
+                refreshTrigger = false
+                print("🔄 ShaderPreviewView: Refreshed parameters from database")
+            }
+        }
+        .onChange(of: currentTime) { _, newTime in
+            // Send current parameters to sync service during rendering
+            sendParametersToSync()
         }
         .onAppear {
             loadShaderData()
+            shaderStartTime = Date()
         }
+    }
+    
+    // MARK: - Send Parameters to Sync
+    
+    private func sendParametersToSync() {
+        guard let syncService = syncService,
+              syncService.isAdvertising else { return }
+        
+        // Throttle to 30fps max (every ~33ms)
+        let now = Date()
+        guard now.timeIntervalSince(lastSyncTime) >= 0.033 else { return }
+        
+        // Update lastSyncTime using dispatch to avoid state mutation in view body
+        DispatchQueue.main.async {
+            self.lastSyncTime = now
+        }
+        
+        // Build parameter values dictionary
+        var paramValues: [String: Float] = [:]
+        for param in parametersVM.parameters {
+            paramValues[param.name] = param.currentValue
+        }
+        
+        // Calculate time since shader started
+        let elapsed = now.timeIntervalSince(shaderStartTime)
+        
+        // Send to sync service
+        syncService.updateParameters(paramValues, time: elapsed)
     }
     
     // MARK: - Load Shader Data & Automation
@@ -108,6 +153,15 @@ struct ShaderPreviewView: View {
         
         // Parse parameters from shader code
         parametersVM.updateFromCode(shader.fragmentCode)
+        
+        // Apply saved values from ShaderParameterEntity (SwiftData)
+        if let savedParams = shader.parameters {
+            for savedParam in savedParams {
+                if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
+                    parametersVM.parameters[index].currentValue = savedParam.floatValue
+                }
+            }
+        }
         
         // Load and play automation
         automationManager.loadAndPlay(from: shader.automationData)
@@ -737,5 +791,9 @@ struct FullscreenShaderOverlay: View {
 }
 
 #Preview {
-    ShaderPreviewView(shader: nil, isFullscreen: .constant(false))
+    ShaderPreviewView(
+        shader: nil,
+        isFullscreen: .constant(false),
+        refreshTrigger: .constant(false)
+    )
 }
