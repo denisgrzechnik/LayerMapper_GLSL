@@ -10,6 +10,8 @@ import SwiftData
 
 struct NewShaderView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \ShaderFolder.order) private var allFolders: [ShaderFolder]
     @StateObject private var aiService = AIShaderService.shared
     @StateObject private var parametersVM = ShaderParametersViewModel()
     
@@ -19,6 +21,8 @@ struct NewShaderView: View {
     @State private var category: ShaderCategory = .custom
     @State private var description: String = ""
     @State private var code: String = defaultShaderCode
+    @State private var selectedFolders: Set<UUID> = []
+    @State private var showFolderPicker = false
     
     // AI Generation
     @State private var aiPrompt: String = ""
@@ -60,7 +64,7 @@ struct NewShaderView: View {
                     // Form sections
                     VStack(spacing: 16) {
                         // AI Generation Section
-                        FormSection(title: "AI Shader Generator", icon: "sparkles", contextActive: aiService.hasConversationContext) {
+                        FormSection(title: "AI Shader Generator", icon: "sparkles") {
                             VStack(alignment: .leading, spacing: 12) {
                                 // Provider picker + conversation status
                                 HStack {
@@ -74,23 +78,6 @@ struct NewShaderView: View {
                                     .pickerStyle(.menu)
                                     
                                     Spacer()
-                                    
-                                    // Conversation indicator
-                                    if aiService.hasConversationContext {
-                                        Button {
-                                            aiService.clearConversation()
-                                        } label: {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: "bubble.left.and.bubble.right.fill")
-                                                    .font(.caption)
-                                                Text("\(aiService.conversationHistory.count / 2)")
-                                                    .font(.caption)
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .font(.caption)
-                                            }
-                                            .foregroundColor(.blue)
-                                        }
-                                    }
                                     
                                     if selectedProvider.requiresAPIKey {
                                         Button {
@@ -112,24 +99,24 @@ struct NewShaderView: View {
                                 HStack(spacing: 10) {
                                     Button {
                                         generateWithAI()
-                                    } label: {
-                                        HStack {
-                                            if aiService.isGenerating {
-                                                ProgressView()
-                                                    .scaleEffect(0.8)
-                                                    .tint(.white)
-                                            } else {
-                                                Image(systemName: aiService.hasConversationContext ? "arrow.triangle.2.circlepath" : "sparkles")
+                                        } label: {
+                                            HStack {
+                                                if aiService.isGenerating {
+                                                    ProgressView()
+                                                        .scaleEffect(0.8)
+                                                        .tint(.white)
+                                                } else {
+                                                    Image(systemName: aiService.hasConversationContext ? "arrow.triangle.2.circlepath" : "sparkles")
+                                                }
+                                                Text(generateButtonText)
                                             }
-                                            Text(generateButtonText)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 10)
+                                            .background(Color(red: 254/255, green: 20/255, blue: 77/255))
+                                            .foregroundColor(.white)
                                         }
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(Color(red: 254/255, green: 20/255, blue: 77/255))
-                                        .foregroundColor(.white)
-                                    }
-                                    .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
-                                    .opacity((aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey)) ? 0.5 : 1)
+                                        .disabled(aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey))
+                                        .opacity((aiPrompt.isEmpty || aiService.isGenerating || (selectedProvider.requiresAPIKey && !hasAPIKey)) ? 0.5 : 1)
                                     
                                     // New conversation button (only show when there's context)
                                     if aiService.hasConversationContext {
@@ -193,6 +180,47 @@ struct NewShaderView: View {
                                     .pickerStyle(.menu)
                                 }
                                 
+                                HStack(alignment: .top) {
+                                    Text("Folders")
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button {
+                                        showFolderPicker = true
+                                    } label: {
+                                        HStack {
+                                            if selectedFolders.isEmpty {
+                                                Text("None")
+                                                    .foregroundColor(.secondary)
+                                            } else {
+                                                Text("\(selectedFolders.count) selected")
+                                                    .foregroundColor(.primary)
+                                            }
+                                            Image(systemName: "chevron.up.chevron.down")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                
+                                // Display selected folders
+                                if !selectedFolders.isEmpty {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        ForEach(allFolders.filter { selectedFolders.contains($0.id) }) { folder in
+                                            HStack(spacing: 6) {
+                                                Image(systemName: folder.iconName)
+                                                    .font(.caption)
+                                                    .foregroundColor(Color(hex: folder.colorHex))
+                                                Text(folder.name)
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                    }
+                                    .padding(8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.black.opacity(0.2))
+                                }
+                                
                                 HStack {
                                     Text("Description")
                                         .foregroundColor(.secondary)
@@ -225,7 +253,7 @@ struct NewShaderView: View {
                                     Text("Ask AI to add sliders, e.g.:")
                                         .font(.caption)
                                         .foregroundColor(.gray)
-                                    Text("\"dodaj slider do kontroli prędkości\"")
+                                    Text("\"add slider for speed control\"")
                                         .font(.caption.italic())
                                         .foregroundColor(.gray)
                                     Text("\"add slider for zoom scale\"")
@@ -262,6 +290,9 @@ struct NewShaderView: View {
             .sheet(isPresented: $showAPIKeySheet) {
                 APIKeySettingsSheet(provider: selectedProvider)
             }
+            .sheet(isPresented: $showFolderPicker) {
+                FolderPickerSheet(selectedFolders: $selectedFolders)
+            }
         }
         .preferredColorScheme(.dark)
     }
@@ -274,31 +305,28 @@ struct NewShaderView: View {
     }
     
     private var aiFooterText: String {
-        if aiService.hasConversationContext {
-            return "💬 Kontekst aktywny - możesz modyfikować shader słowami jak 'wolniej', 'zmień kolor na czerwony' itp."
-        }
         switch selectedProvider {
         case .openAI:
-            return "GPT-4o-mini: ~$0.15/1M tokenów. Wymaga klucza API z platform.openai.com"
+            return "GPT-4o-mini: ~$0.15/1M tokens. Requires API key from platform.openai.com"
         case .groq:
-            return "Darmowe 6000 req/dzień. Zarejestruj się na console.groq.com"
+            return "Free 6000 req/day. Sign up at console.groq.com"
         case .ollama:
-            return "Lokalnie na Mac. Zainstaluj: brew install ollama && ollama pull codellama"
+            return "Local on Mac. Install: brew install ollama && ollama pull codellama"
         }
     }
     
     private var promptPlaceholder: String {
         if aiService.hasConversationContext {
-            return "Modyfikuj: 'wolniej', 'zmień kolor', 'dodaj blur'..."
+            return "Modify: 'slower', 'change color', 'add blur'..."
         }
-        return "Opisz shader, np. 'kolorowa spirala z neonowym efektem'"
+        return "Describe shader, e.g. 'colorful spiral with neon effect'"
     }
     
     private var generateButtonText: String {
         if aiService.isGenerating {
-            return "Generuję..."
+            return "Generating..."
         }
-        return aiService.hasConversationContext ? "Modyfikuj" : "Generuj z AI"
+        return aiService.hasConversationContext ? "Modify" : "Generate with AI"
     }
     
     // MARK: - AI Generation
@@ -337,6 +365,13 @@ struct NewShaderView: View {
             isBuiltIn: false,
             shaderDescription: description
         )
+        
+        // Add shader to selected folders
+        if !selectedFolders.isEmpty {
+            for folder in allFolders where selectedFolders.contains(folder.id) {
+                folder.addShader(shader.id)
+            }
+        }
         
         onCreate(shader)
         dismiss()
@@ -445,7 +480,6 @@ struct ParameterToggleRow: View {
 struct FormSection<Content: View>: View {
     let title: String
     let icon: String
-    var contextActive: Bool = false
     @ViewBuilder let content: Content
     
     var body: some View {
@@ -456,12 +490,6 @@ struct FormSection<Content: View>: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
-                
-                if contextActive {
-                    Text("• Kontekst aktywny")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -494,7 +522,7 @@ struct APIKeySettingsSheet: View {
                         .textContentType(.password)
                         .autocorrectionDisabled()
                 } header: {
-                    Text("Klucz API dla \(provider.rawValue)")
+                    Text("API Key for \(provider.rawValue)")
                 } footer: {
                     Text(footerText)
                 }
@@ -502,24 +530,24 @@ struct APIKeySettingsSheet: View {
                 Section {
                     Link(destination: providerURL) {
                         HStack {
-                            Text("Uzyskaj klucz API")
+                            Text("Get API Key")
                             Spacer()
                             Image(systemName: "arrow.up.right.square")
                         }
                     }
                 }
             }
-            .navigationTitle("Ustawienia API")
+            .navigationTitle("API Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Anuluj") {
+                    Button("Cancel") {
                         dismiss()
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Zapisz") {
+                    Button("Save") {
                         aiService.setAPIKey(apiKey, for: provider)
                         dismiss()
                     }
@@ -537,11 +565,11 @@ struct APIKeySettingsSheet: View {
     private var footerText: String {
         switch provider {
         case .openAI:
-            return "Znajdziesz go na platform.openai.com/api-keys"
+            return "You can find it at platform.openai.com/api-keys"
         case .groq:
-            return "Znajdziesz go na console.groq.com/keys"
+            return "You can find it at console.groq.com/keys"
         case .ollama:
-            return "Ollama nie wymaga klucza API"
+            return "Ollama doesn't require an API key"
         }
     }
     
@@ -553,6 +581,67 @@ struct APIKeySettingsSheet: View {
             return URL(string: "https://console.groq.com/keys")!
         case .ollama:
             return URL(string: "https://ollama.ai")!
+        }
+    }
+}
+
+// MARK: - Folder Picker Sheet
+
+struct FolderPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \ShaderFolder.order) private var folders: [ShaderFolder]
+    
+    @Binding var selectedFolders: Set<UUID>
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                // User folders
+                ForEach(folders) { folder in
+                    Button {
+                        toggleFolder(folder.id)
+                    } label: {
+                        HStack {
+                            Image(systemName: folder.iconName)
+                                .foregroundColor(Color(hex: folder.colorHex))
+                            Text(folder.name)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedFolders.contains(folder.id) {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Folders")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Clear All") {
+                        selectedFolders.removeAll()
+                    }
+                    .disabled(selectedFolders.isEmpty)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.dark)
+    }
+    
+    private func toggleFolder(_ folderId: UUID) {
+        if selectedFolders.contains(folderId) {
+            selectedFolders.remove(folderId)
+        } else {
+            selectedFolders.insert(folderId)
         }
     }
 }
