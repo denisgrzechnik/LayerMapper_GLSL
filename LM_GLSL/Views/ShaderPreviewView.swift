@@ -12,7 +12,7 @@ struct ShaderPreviewView: View {
     let shader: ShaderEntity?
     @Binding var isFullscreen: Bool
     var syncService: ShaderSyncService?
-    @Binding var refreshTrigger: Bool
+    @ObservedObject var parametersVM: ShaderParametersViewModel
     
     // HDMI output aspect ratio (16:9)
     private let hdmiAspectRatio: CGFloat = 16.0 / 9.0
@@ -26,7 +26,6 @@ struct ShaderPreviewView: View {
     
     // Automation & Parameters
     @StateObject private var automationManager = ParameterAutomationManager()
-    @StateObject private var parametersVM = ShaderParametersViewModel()
     
     var body: some View {
         GeometryReader { geometry in
@@ -96,13 +95,6 @@ struct ShaderPreviewView: View {
         .onChange(of: shader?.id) { _, _ in
             loadShaderData()
             shaderStartTime = Date()
-        }
-        .onChange(of: refreshTrigger) { _, needsRefresh in
-            if needsRefresh {
-                loadShaderData()
-                refreshTrigger = false
-                print("🔄 ShaderPreviewView: Refreshed parameters from database")
-            }
         }
         .onChange(of: currentTime) { _, newTime in
             // Send current parameters to sync service during rendering
@@ -794,6 +786,6 @@ struct FullscreenShaderOverlay: View {
     ShaderPreviewView(
         shader: nil,
         isFullscreen: .constant(false),
-        refreshTrigger: .constant(false)
+        parametersVM: ShaderParametersViewModel()
     )
 }

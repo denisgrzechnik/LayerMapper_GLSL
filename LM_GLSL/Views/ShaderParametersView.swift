@@ -14,7 +14,7 @@ struct ShaderParametersView: View {
     @Environment(\.modelContext) private var modelContext
     
     @Bindable var shader: ShaderEntity
-    @StateObject private var parametersVM = ShaderParametersViewModel()
+    @ObservedObject var parametersVM: ShaderParametersViewModel
     @StateObject private var aiService = AIShaderService.shared
     @StateObject private var automationManager = ParameterAutomationManager()
     
@@ -116,13 +116,17 @@ struct ShaderParametersView: View {
             }
         }
         .onAppear {
-            parametersVM.updateFromCode(shader.fragmentCode)
-            
-            // Apply saved values from ShaderParameterEntity (SwiftData)
-            if let savedParams = shader.parameters {
-                for savedParam in savedParams {
-                    if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
-                        parametersVM.parameters[index].currentValue = savedParam.floatValue
+            // Parameters are already loaded in shared parametersVM from ShaderPreviewView
+            // Only parse if empty (first time or shader changed)
+            if parametersVM.parameters.isEmpty {
+                parametersVM.updateFromCode(shader.fragmentCode)
+                
+                // Apply saved values from ShaderParameterEntity (SwiftData)
+                if let savedParams = shader.parameters {
+                    for savedParam in savedParams {
+                        if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
+                            parametersVM.parameters[index].currentValue = savedParam.floatValue
+                        }
                     }
                 }
             }
@@ -885,7 +889,8 @@ struct KnobView: View {
                 """,
                 category: .custom,
                 author: "Test"
-            )
+            ),
+            parametersVM: ShaderParametersViewModel()
         )
     }
 }

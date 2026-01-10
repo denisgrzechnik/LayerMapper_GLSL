@@ -11,6 +11,7 @@ import SwiftData
 struct ShaderCustomizeView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var shader: ShaderEntity
+    @ObservedObject var parametersVM: ShaderParametersViewModel
     @Binding var isCustomizing: Bool
     @Binding var showingCodeEditor: Bool
     
@@ -212,7 +213,7 @@ struct ShaderCustomizeView: View {
             Text("Are you sure you want to delete this shader? This action cannot be undone.")
         }
         .fullScreenCover(isPresented: $showingFullParameters) {
-            ShaderParametersView(shader: shader)
+            ShaderParametersView(shader: shader, parametersVM: parametersVM)
         }
     }
     
@@ -339,6 +340,7 @@ struct ParameterSlider: View {
 #Preview {
     ShaderCustomizeView(
         shader: ShaderEntity(name: "Test", fragmentCode: "return float4(1.0);"),
+        parametersVM: ShaderParametersViewModel(),
         isCustomizing: .constant(true),
         showingCodeEditor: .constant(false)
     )

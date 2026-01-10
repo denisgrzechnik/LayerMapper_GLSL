@@ -20,10 +20,12 @@ struct ContentView: View {
     @State private var showingCodeEditor: Bool = false
     @State private var showingParametersView: Bool = false
     @State private var isFullscreen: Bool = false
-    @State private var parametersNeedRefresh: Bool = false
     
     // Shader Sync Service
     @StateObject private var syncService = ShaderSyncService()
+    
+    // Shared parameter view model - single instance for both Preview and Parameters views
+    @StateObject private var parametersVM = ShaderParametersViewModel()
     
     private var filteredShaders: [ShaderEntity] {
         var result = allShaders
@@ -53,7 +55,7 @@ struct ContentView: View {
                         shader: selectedShader,
                         isFullscreen: $isFullscreen,
                         syncService: syncService,
-                        refreshTrigger: $parametersNeedRefresh
+                        parametersVM: parametersVM
                     )
                     .frame(width: geometry.size.width * 0.8)
                     
@@ -64,6 +66,7 @@ struct ContentView: View {
                         if isCustomizing, let shader = selectedShader {
                             ShaderCustomizeView(
                                 shader: shader,
+                                parametersVM: parametersVM,
                                 isCustomizing: $isCustomizing,
                                 showingCodeEditor: $showingCodeEditor
                             )
@@ -109,12 +112,9 @@ struct ContentView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $showingParametersView, onDismiss: {
-            // Force refresh shader parameters after editing
-            parametersNeedRefresh = true
-        }) {
+        .fullScreenCover(isPresented: $showingParametersView) {
             if let shader = selectedShader {
-                ShaderParametersView(shader: shader)
+                ShaderParametersView(shader: shader, parametersVM: parametersVM)
             }
         }
         .onAppear {
