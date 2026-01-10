@@ -68,6 +68,8 @@ struct ContentView: View {
                         ShaderPreviewView(
                             shader: selectedShader,
                             isFullscreen: $isFullscreen,
+                            showingParametersView: $showingParametersView,
+                            viewMode: $viewMode,
                             syncService: syncService,
                             parametersVM: parametersVM
                         )
@@ -109,6 +111,7 @@ struct ContentView: View {
                                 shaders: allShaders,
                                 selectedShader: $selectedShader,
                                 showingParametersView: $showingParametersView,
+                                viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
                                 selectedCategory: selectedGridCategory
                             )
@@ -134,6 +137,7 @@ struct ContentView: View {
                                 shaders: allShaders,
                                 selectedShader: $selectedShader,
                                 showingParametersView: $showingParametersView,
+                                viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
                                 selectedCategory: selectedGridCategory
                             )
@@ -160,7 +164,8 @@ struct ContentView: View {
             if isFullscreen {
                 FullscreenShaderOverlayTopLevel(
                     shader: selectedShader,
-                    isPresented: $isFullscreen
+                    isPresented: $isFullscreen,
+                    parametersVM: parametersVM
                 )
                 .transition(.scale(scale: 0.1).combined(with: .opacity))
                 .zIndex(999)
@@ -191,10 +196,18 @@ struct ContentView: View {
             if selectedShader == nil {
                 selectedShader = allShaders.first
             }
+            // Load parameters for initial shader
+            if let shader = selectedShader {
+                loadParametersForShader(shader)
+            }
             // Note: Sync service is NOT started automatically
             // User must tap broadcast button to start
         }
         .onChange(of: selectedShader) { oldValue, newValue in
+            // Load parameters for new shader (important for portrait mode)
+            if let shader = newValue {
+                loadParametersForShader(shader)
+            }
             // Broadcast shader change
             broadcastCurrentShader()
         }
@@ -205,6 +218,22 @@ struct ContentView: View {
                 syncService.startParameterStreaming()
             } else {
                 syncService.stopParameterStreaming()
+            }
+        }
+    }
+    
+    // MARK: - Load Parameters for Shader
+    
+    private func loadParametersForShader(_ shader: ShaderEntity) {
+        // Parse parameters from shader code
+        parametersVM.updateFromCode(shader.fragmentCode)
+        
+        // Apply saved values from ShaderParameterEntity (SwiftData)
+        if let savedParams = shader.parameters {
+            for savedParam in savedParams {
+                if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
+                    parametersVM.parameters[index].currentValue = savedParam.floatValue
+                }
             }
         }
     }
@@ -243,6 +272,7 @@ struct ContentView: View {
 struct FullscreenShaderOverlayTopLevel: View {
     let shader: ShaderEntity?
     @Binding var isPresented: Bool
+    @ObservedObject var parametersVM: ShaderParametersViewModel
     
     @State private var isPlaying: Bool = true
     @State private var currentTime: Double = 0
@@ -257,7 +287,8 @@ struct FullscreenShaderOverlayTopLevel: View {
                 MetalShaderView(
                     shaderCode: shader.fragmentCode,
                     isPlaying: $isPlaying,
-                    currentTime: $currentTime
+                    currentTime: $currentTime,
+                    parameters: parametersVM.parameters
                 )
                 .ignoresSafeArea()
             }
@@ -313,7 +344,14 @@ struct FullscreenShaderOverlayTopLevel: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
+        .onTapGesture(count: 2) {
+            // Double tap to close fullscreen
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                isPresented = false
+            }
+        }
+        .onTapGesture(count: 1) {
+            // Single tap to toggle controls
             withAnimation(.easeInOut(duration: 0.25)) {
                 showControls.toggle()
             }

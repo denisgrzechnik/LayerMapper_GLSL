@@ -122,9 +122,30 @@ struct ShaderListView: View {
                     }
                 }
                 
-                // Remaining 5 empty slots - first one is view mode toggle
+                // Parameters button for current shader (second slot)
+                Button(action: {
+                    if selectedShader != nil {
+                        showingParametersView = true
+                    }
+                }) {
+                    ZStack {
+                        Rectangle()
+                            .fill(selectedShader != nil ? Color(white: 0.1) : Color(white: 0.05))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
+                            )
+                            .cornerRadius(6)
+                        
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 16))
+                            .foregroundColor(selectedShader != nil ? Color(white: 0.6) : Color(white: 0.3))
+                    }
+                }
+                .disabled(selectedShader == nil)
                 
-                // View mode toggle button (Preview/Grid)
+                // View mode toggle button (Preview/Grid) (third slot)
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         viewMode = viewMode == .preview ? .grid : .preview
@@ -146,8 +167,8 @@ struct ShaderListView: View {
                     }
                 }
                 
-                // Remaining 4 empty slots
-                ForEach(0..<4, id: \.self) { _ in
+                // Remaining 3 empty slots
+                ForEach(0..<3, id: \.self) { _ in
                     emptySlotButton
                 }
             }

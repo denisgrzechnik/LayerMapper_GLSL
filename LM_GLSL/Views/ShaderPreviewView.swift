@@ -11,6 +11,8 @@ import MetalKit
 struct ShaderPreviewView: View {
     let shader: ShaderEntity?
     @Binding var isFullscreen: Bool
+    @Binding var showingParametersView: Bool
+    @Binding var viewMode: ViewMode
     var syncService: ShaderSyncService?
     @ObservedObject var parametersVM: ShaderParametersViewModel
     
@@ -77,6 +79,23 @@ struct ShaderPreviewView: View {
                 }
                 .frame(width: previewSize.width, height: previewSize.height)
                 .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                        .onEnded { value in
+                            // Swipe up to open parameters view
+                            if value.translation.height < -100 && abs(value.translation.width) < abs(value.translation.height) {
+                                if shader != nil {
+                                    showingParametersView = true
+                                }
+                            }
+                            // Swipe left to switch to Grid view
+                            if value.translation.width < -100 && abs(value.translation.height) < abs(value.translation.width) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    viewMode = .grid
+                                }
+                            }
+                        }
+                )
                 .onTapGesture(count: 2) {
                     // Double tap to toggle fullscreen with zoom animation
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -791,6 +810,8 @@ struct FullscreenShaderOverlay: View {
     ShaderPreviewView(
         shader: nil,
         isFullscreen: .constant(false),
+        showingParametersView: .constant(false),
+        viewMode: .constant(.preview),
         parametersVM: ShaderParametersViewModel()
     )
 }

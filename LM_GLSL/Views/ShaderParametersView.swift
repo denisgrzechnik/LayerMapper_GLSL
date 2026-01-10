@@ -47,6 +47,16 @@ struct ShaderParametersView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isFullscreen)
+        .gesture(
+            DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                .onEnded { value in
+                    // Swipe down to dismiss
+                    if value.translation.height > 100 && abs(value.translation.width) < abs(value.translation.height) {
+                        saveChanges()
+                        dismiss()
+                    }
+                }
+        )
         .sheet(isPresented: $showSettings) {
             ShaderSettingsView(shader: shader)
         }

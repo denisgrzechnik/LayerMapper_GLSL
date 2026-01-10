@@ -16,6 +16,7 @@ struct ShaderGridMainView: View {
     let shaders: [ShaderEntity]
     @Binding var selectedShader: ShaderEntity?
     @Binding var showingParametersView: Bool
+    @Binding var viewMode: ViewMode
     
     // Filtering by folder or category
     var selectedFolder: ShaderFolder?
@@ -103,6 +104,17 @@ struct ShaderGridMainView: View {
                 }
             }
             .background(Color.black)
+            .gesture(
+                DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                    .onEnded { value in
+                        // Swipe right to switch to Preview view (only in landscape)
+                        if value.translation.width > 100 && abs(value.translation.height) < abs(value.translation.width) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                viewMode = .preview
+                            }
+                        }
+                    }
+            )
             .onAppear {
                 isLandscape = isCurrentlyLandscape
             }
@@ -220,7 +232,8 @@ struct GridShaderItem: View {
     ShaderGridMainView(
         shaders: [],
         selectedShader: .constant(nil),
-        showingParametersView: .constant(false)
+        showingParametersView: .constant(false),
+        viewMode: .constant(.grid)
     )
     .modelContainer(for: [ShaderEntity.self, ShaderFolder.self], inMemory: true)
 }
