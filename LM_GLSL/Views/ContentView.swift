@@ -12,6 +12,10 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ShaderEntity.name) private var allShaders: [ShaderEntity]
     
+    // Store Manager for IAP
+    @StateObject private var store = StoreManager.shared
+    @State private var showPurchaseView = false
+    
     @State private var selectedShader: ShaderEntity?
     @State private var selectedCategory: ShaderCategory = .all
     @State private var searchText: String = ""
@@ -20,6 +24,7 @@ struct ContentView: View {
     @State private var showingCodeEditor: Bool = false
     @State private var showingParametersView: Bool = false
     @State private var isFullscreen: Bool = false
+
     
     // View mode: Preview or Grid
     @State private var viewMode: ViewMode = .preview
@@ -170,8 +175,19 @@ struct ContentView: View {
                 .transition(.scale(scale: 0.1).combined(with: .opacity))
                 .zIndex(999)
             }
+            
+            // License banner at bottom - only show if NO access at all
+            if !store.hasFullAccess {
+                VStack {
+                    Spacer()
+                    licenseBanner
+                }
+            }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showPurchaseView) {
+            PurchaseView()
+        }
         .sheet(isPresented: $showingNewShaderSheet) {
             NewShaderView { newShader in
                 modelContext.insert(newShader)
@@ -219,6 +235,45 @@ struct ContentView: View {
             } else {
                 syncService.stopParameterStreaming()
             }
+        }
+        .onChange(of: store.hasCompletedInitialCheck) { oldValue, completed in
+            if completed {
+                checkLicenseStatus()
+            }
+        }
+    }
+    
+    // MARK: - License Banner
+    
+    private var licenseBanner: some View {
+        Button(action: {
+            showPurchaseView = true
+        }) {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 16))
+                
+                Text("Purchase license to unlock full access")
+                    .font(.system(size: 14, weight: .medium))
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+            }
+            .foregroundColor(.white)
+            .padding()
+            .background(Color.orange)
+            .padding(.horizontal)
+        }
+    }
+    
+    // MARK: - License Check
+    
+    private func checkLicenseStatus() {
+        // Only show purchase screen if user has NO access after verification
+        if !store.hasFullAccess {
+            showPurchaseView = true
         }
     }
     

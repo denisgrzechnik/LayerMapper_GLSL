@@ -12,7 +12,7 @@ import SwiftData
 @Model
 final class ShaderEntity {
     // MARK: - Identyfikacja
-    @Attribute(.unique) var id: UUID
+    var id: UUID  // CloudKit doesn't support unique constraints
     var name: String
     var shaderDescription: String
     
@@ -120,7 +120,7 @@ final class ShaderEntity {
 /// Model parametru shadera w SwiftData
 @Model
 final class ShaderParameterEntity {
-    @Attribute(.unique) var id: UUID
+    var id: UUID  // CloudKit doesn't support unique constraints
     var name: String
     var displayName: String
     var parameterType: String // "float", "color", "int", "bool", "vec2", "vec3", "vec4"
@@ -172,7 +172,7 @@ final class ShaderParameterEntity {
 
 @Model
 final class TagEntity {
-    @Attribute(.unique) var id: UUID
+    var id: UUID  // CloudKit doesn't support unique constraints
     var name: String
     var colorHex: String
     var usageCount: Int

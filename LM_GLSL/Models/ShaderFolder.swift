@@ -11,7 +11,7 @@ import SwiftData
 /// Model foldera shaderów w SwiftData
 @Model
 final class ShaderFolder {
-    @Attribute(.unique) var id: UUID
+    var id: UUID  // CloudKit doesn't support unique constraints
     var name: String
     var colorHex: String
     var iconName: String

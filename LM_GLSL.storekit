@@ -1,0 +1,203 @@
+{
+  "identifier" : "GLSL_STORE001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "100.00",
+      "familyShareable" : false,
+      "internalID" : "GLSL_TIP88001",
+      "localizations" : [
+        {
+          "description" : "Support LM_GLSL development with $100 tip!",
+          "displayName" : "$100 Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.layermapper.glsl.tip.88",
+      "referenceName" : "Tip $100",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "150.00",
+      "familyShareable" : false,
+      "internalID" : "GLSL_TIP111001",
+      "localizations" : [
+        {
+          "description" : "Support LM_GLSL development with $150 tip!",
+          "displayName" : "$150 Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.layermapper.glsl.tip.111",
+      "referenceName" : "Tip $150",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "200.00",
+      "familyShareable" : false,
+      "internalID" : "GLSL_TIP222001",
+      "localizations" : [
+        {
+          "description" : "Support LM_GLSL development with $200 tip!",
+          "displayName" : "$200 Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.layermapper.glsl.tip.222",
+      "referenceName" : "Tip $200",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "400.00",
+      "familyShareable" : false,
+      "internalID" : "GLSL_TIP444001",
+      "localizations" : [
+        {
+          "description" : "Support LM_GLSL development with $400 tip!",
+          "displayName" : "$400 Tip",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.layermapper.glsl.tip.444",
+      "referenceName" : "Tip $400",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "GLSL_APP001",
+    "_developerTeamID" : "YOUR_TEAM_ID",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 752889600.0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "GLSL_SUBGROUP001",
+      "localizations" : [
+
+      ],
+      "name" : "LM_GLSL Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "11.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "GLSL_SUB_MONTHLY",
+          "introductoryOffer" : {
+            "internalID" : "GLSL_INTRO001",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "Monthly subscription with full access to all LM_GLSL features. First 30 days free, then €11/month.",
+              "displayName" : "Monthly Subscription",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "Miesięczna subskrypcja dająca pełny dostęp do wszystkich funkcji LM_GLSL. Pierwsze 30 dni gratis, potem €11/miesiąc.",
+              "displayName" : "Subskrypcja miesięczna",
+              "locale" : "pl"
+            }
+          ],
+          "productID" : "com.layermapper.glsl.subscription.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Subscription",
+          "subscriptionGroupID" : "GLSL_SUBGROUP001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "66.00",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "GLSL_SUB_YEARLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Yearly subscription with full access to all LM_GLSL features. Save 50% compared to monthly!",
+              "displayName" : "Yearly Subscription",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "Roczna subskrypcja dająca pełny dostęp do wszystkich funkcji LM_GLSL. Oszczędź 50% w porównaniu z miesięczną!",
+              "displayName" : "Subskrypcja roczna",
+              "locale" : "pl"
+            }
+          ],
+          "productID" : "com.layermapper.glsl.subscription.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Subscription",
+          "subscriptionGroupID" : "GLSL_SUBGROUP001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

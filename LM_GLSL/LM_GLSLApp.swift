@@ -21,10 +21,13 @@ struct LM_GLSLApp: App {
             ShaderFolder.self
         ])
         
+        // Use local storage only - CloudKit sync disabled for now
+        // TODO: Enable CloudKit after proper schema setup in CloudKit Dashboard
         let modelConfiguration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
-            allowsSave: true
+            allowsSave: true,
+            cloudKitDatabase: .none  // Disable CloudKit for now
         )
         
         do {

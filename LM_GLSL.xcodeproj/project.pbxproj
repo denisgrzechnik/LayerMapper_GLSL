@@ -25,6 +25,9 @@
 		0A00001F291F0001000A0016 /* ShaderCodes_Part5.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A000020291F0001000A0016 /* ShaderCodes_Part5.swift */; };
 		0A000021291F0001000A0017 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A000022291F0001000A0017 /* Color+Hex.swift */; };
 		0A000023291F0001000A0018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A000024291F0001000A0018 /* Assets.xcassets */; };
+		5821BDAD2F146F5900E75E1D /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDAB2F146F5900E75E1D /* Logger.swift */; };
+		5821BDB02F146FA100E75E1D /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDAE2F146FA100E75E1D /* StoreManager.swift */; };
+		5821BDB22F146FBA00E75E1D /* PurchaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDB12F146FBA00E75E1D /* PurchaseView.swift */; };
 		58C556552F04FF4B0094CB27 /* AIShaderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556542F04FF4B0094CB27 /* AIShaderService.swift */; };
 		58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */; };
 		58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556582F050E200094CB27 /* ShaderParameter.swift */; };
@@ -60,6 +63,10 @@
 		0A000020291F0001000A0016 /* ShaderCodes_Part5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part5.swift; sourceTree = "<group>"; };
 		0A000022291F0001000A0017 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		0A000024291F0001000A0018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5821BDAB2F146F5900E75E1D /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		5821BDAE2F146FA100E75E1D /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		5821BDB12F146FBA00E75E1D /* PurchaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseView.swift; sourceTree = "<group>"; };
+		5821BDB32F1481FE00E75E1D /* LM_GLSL.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = LM_GLSL.storekit; sourceTree = "<group>"; };
 		58C556542F04FF4B0094CB27 /* AIShaderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIShaderService.swift; sourceTree = "<group>"; };
 		58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Parametric.swift; sourceTree = "<group>"; };
 		58C556582F050E200094CB27 /* ShaderParameter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderParameter.swift; sourceTree = "<group>"; };
@@ -73,6 +80,7 @@
 		58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCategoryPanel.swift; sourceTree = "<group>"; };
 		58C562182F129E040094CB27 /* ViewMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewMode.swift; sourceTree = "<group>"; };
 		58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortraitBottomPanel.swift; sourceTree = "<group>"; };
+		58C5621C2F12E70A0094CB27 /* LM_GLSL.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LM_GLSL.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +97,7 @@
 		0A0000F7291F0001000A0001 = {
 			isa = PBXGroup;
 			children = (
+				5821BDB32F1481FE00E75E1D /* LM_GLSL.storekit */,
 				0A0000F8291F0001000A0001 /* LM_GLSL */,
 				0A0000FF291F0001000A0001 /* Products */,
 			);
@@ -97,6 +106,7 @@
 		0A0000F8291F0001000A0001 /* LM_GLSL */ = {
 			isa = PBXGroup;
 			children = (
+				58C5621C2F12E70A0094CB27 /* LM_GLSL.entitlements */,
 				0A000002291F0001000A0001 /* LM_GLSLApp.swift */,
 				0A0000F9291F0001000A0001 /* Views */,
 				0A0000FA291F0001000A0001 /* Models */,
@@ -104,6 +114,8 @@
 				0A0000FC291F0001000A0001 /* Extensions */,
 				0A000024291F0001000A0018 /* Assets.xcassets */,
 				58C562092F0F38940094CB27 /* Sync */,
+				5821BDAC2F146F5900E75E1D /* Utilities */,
+				5821BDAF2F146FA100E75E1D /* Managers */,
 			);
 			path = LM_GLSL;
 			sourceTree = "<group>";
@@ -111,6 +123,7 @@
 		0A0000F9291F0001000A0001 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				5821BDB12F146FBA00E75E1D /* PurchaseView.swift */,
 				58C556602F0536EC0094CB27 /* ShaderSettingsView.swift */,
 				58C5565E2F0536C80094CB27 /* ShaderParametersView.swift */,
 				0A000004291F0001000A0002 /* ContentView.swift */,
@@ -169,6 +182,22 @@
 				0A000000291F0001000A0001 /* LM_GLSL.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5821BDAC2F146F5900E75E1D /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				5821BDAB2F146F5900E75E1D /* Logger.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		5821BDAF2F146FA100E75E1D /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				5821BDAE2F146FA100E75E1D /* StoreManager.swift */,
+			);
+			path = Managers;
 			sourceTree = "<group>";
 		};
 		58C562092F0F38940094CB27 /* Sync */ = {
@@ -250,6 +279,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */,
+				5821BDAD2F146F5900E75E1D /* Logger.swift in Sources */,
 				58C562152F129D9B0094CB27 /* ShaderGridMainView.swift in Sources */,
 				58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */,
 				0A000001291F0001000A0001 /* LM_GLSLApp.swift in Sources */,
@@ -266,9 +296,11 @@
 				58C562192F129E040094CB27 /* ViewMode.swift in Sources */,
 				58C5565D2F0524870094CB27 /* ParameterAutomation.swift in Sources */,
 				58C5565F2F0536C80094CB27 /* ShaderParametersView.swift in Sources */,
+				5821BDB22F146FBA00E75E1D /* PurchaseView.swift in Sources */,
 				0A000011291F0001000A0009 /* ShaderEntity.swift in Sources */,
 				0A000013291F0001000A0010 /* ShaderDataManager.swift in Sources */,
 				58C562172F129DD80094CB27 /* FolderCategoryPanel.swift in Sources */,
+				5821BDB02F146FA100E75E1D /* StoreManager.swift in Sources */,
 				58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */,
 				58C562132F129D570094CB27 /* ShaderFolder.swift in Sources */,
 				0A000015291F0001000A0011 /* BuiltInShaderLoader.swift in Sources */,
@@ -409,6 +441,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = LM_GLSL/LM_GLSL.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U9759WPUN5;
@@ -436,6 +469,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = LM_GLSL/LM_GLSL.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U9759WPUN5;
