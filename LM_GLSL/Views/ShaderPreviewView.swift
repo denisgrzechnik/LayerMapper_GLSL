@@ -15,6 +15,8 @@ struct ShaderPreviewView: View {
     @Binding var viewMode: ViewMode
     var syncService: ShaderSyncService?
     @ObservedObject var parametersVM: ShaderParametersViewModel
+    // Don't observe automationManager to avoid 60fps view rebuilds - just hold reference
+    var automationManager: ParameterAutomationManager
     
     // HDMI output aspect ratio (16:9)
     private let hdmiAspectRatio: CGFloat = 16.0 / 9.0
@@ -25,9 +27,6 @@ struct ShaderPreviewView: View {
     @State private var showOverlay: Bool = false
     @State private var shaderStartTime: Date = Date()
     @State private var lastSyncTime: Date = Date.distantPast
-    
-    // Automation & Parameters
-    @StateObject private var automationManager = ParameterAutomationManager()
     
     var body: some View {
         GeometryReader { geometry in
@@ -164,11 +163,11 @@ struct ShaderPreviewView: View {
         syncService.updateParameters(paramValues, time: elapsed)
     }
     
-    // MARK: - Load Shader Data & Automation
+    // MARK: - Load Shader Data
     
     private func loadShaderData() {
         guard let shader = shader else {
-            automationManager.clearAllTracks()
+            // Clear parameters when no shader selected
             parametersVM.parameters = []
             return
         }
@@ -185,10 +184,8 @@ struct ShaderPreviewView: View {
             }
         }
         
-        // Load and play automation
-        automationManager.loadAndPlay(from: shader.automationData)
-        
-        // Setup automation callback
+        // Note: Automation is now loaded and managed by ContentView's shared automationManager
+        // Ensure callback is set for this view as well
         automationManager.onParameterUpdate = { [weak parametersVM] name, value in
             guard let vm = parametersVM else { return }
             if let index = vm.parameters.firstIndex(where: { $0.name == name }) {
@@ -836,6 +833,7 @@ struct FullscreenShaderOverlay: View {
         isFullscreen: .constant(false),
         showingParametersView: .constant(false),
         viewMode: .constant(.preview),
-        parametersVM: ShaderParametersViewModel()
+        parametersVM: ShaderParametersViewModel(),
+        automationManager: ParameterAutomationManager()
     )
 }

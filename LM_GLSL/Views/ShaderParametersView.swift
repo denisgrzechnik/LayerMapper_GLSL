@@ -15,8 +15,14 @@ struct ShaderParametersView: View {
     
     @Bindable var shader: ShaderEntity
     @ObservedObject var parametersVM: ShaderParametersViewModel
+    // Don't observe automationManager to avoid 60fps view rebuilds - just hold reference
+    var automationManager: ParameterAutomationManager
     @StateObject private var aiService = AIShaderService.shared
-    @StateObject private var automationManager = ParameterAutomationManager()
+    
+    // Local state for automation UI (updated sparingly, not 60fps)
+    @State private var automationState: AutomationState = .idle
+    @State private var hasRecording: Bool = false
+    @State private var displayPlaybackTime: Double = 0
     
     // AI Generation
     @State private var aiPrompt: String = ""
@@ -115,7 +121,7 @@ struct ShaderParametersView: View {
             }
         }
         .onAppear {
-            // Parameters are already loaded in shared parametersVM from ShaderPreviewView
+            // Parameters are already loaded in shared parametersVM from ContentView
             // Only parse if empty (first time or shader changed)
             if parametersVM.parameters.isEmpty {
                 parametersVM.updateFromCode(shader.fragmentCode)
@@ -133,16 +139,17 @@ struct ShaderParametersView: View {
             // Initialize AI with current shader code as context
             aiService.initializeWithShaderContext(shader.fragmentCode)
             
-            // Load saved automation and start playback
-            automationManager.loadAndPlay(from: shader.automationData)
-            
-            // Setup automation playback callback
+            // Automation is already loaded and playing via shared automationManager from ContentView
+            // Just ensure callback is set (it may have been cleared)
             automationManager.onParameterUpdate = { [weak parametersVM] name, value in
                 guard let vm = parametersVM else { return }
                 if let index = vm.parameters.firstIndex(where: { $0.name == name }) {
                     vm.parameters[index].currentValue = value
                 }
             }
+            
+            // Initialize local UI state from automationManager
+            updateAutomationUIState()
         }
         .onDisappear {
             // Save parameters and automation when leaving
@@ -152,6 +159,10 @@ struct ShaderParametersView: View {
         }
         .onChange(of: shader.fragmentCode) { _, newCode in
             parametersVM.updateFromCode(newCode)
+        }
+        // Timer to update automation UI state at low frequency (5fps) to avoid expensive view rebuilds
+        .onReceive(Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()) { _ in
+            updateAutomationUIState()
         }
         .sheet(isPresented: $showAPIKeySheet) {
             APIKeySettingsSheet(provider: selectedProvider)
@@ -250,16 +261,16 @@ struct ShaderParametersView: View {
                 Spacer()
                 
                 // Automation status/playback indicator
-                if automationManager.hasAnyRecording {
+                if hasRecording {
                     HStack(spacing: 4) {
-                        Text(String(format: "%.1fs", automationManager.playbackTime))
+                        Text(String(format: "%.1fs", displayPlaybackTime))
                             .font(.caption2.monospacedDigit())
                     }
-                    .foregroundColor(automationManager.isPlaying ? .green : .gray)
+                    .foregroundColor(automationState == .playing || automationState == .playingAndRecording ? .green : .gray)
                 }
                 
                 // Play/Pause button (only when recording exists)
-                if automationManager.hasAnyRecording {
+                if hasRecording {
                     playPauseButton
                 }
                 
@@ -267,7 +278,7 @@ struct ShaderParametersView: View {
                 recordButton
                 
                 // Clear button (only when recording exists)
-                if automationManager.hasAnyRecording {
+                if hasRecording {
                     clearButton
                 }
                 
@@ -333,8 +344,9 @@ struct ShaderParametersView: View {
     private var playPauseButton: some View {
         Button {
             automationManager.togglePlayback()
+            updateAutomationUIState()
         } label: {
-            Image(systemName: automationManager.isPlaying ? "pause.fill" : "play.fill")
+            Image(systemName: automationState == .playing || automationState == .playingAndRecording ? "pause.fill" : "play.fill")
                 .font(.caption)
                 .foregroundColor(.green)
                 .padding(6)
@@ -348,29 +360,31 @@ struct ShaderParametersView: View {
     private var recordButton: some View {
         Button {
             handleRecordButtonTap()
+            updateAutomationUIState()
         } label: {
             ZStack {
                 Circle()
                     .fill(recordButtonColor.opacity(0.2))
                     .frame(width: 28, height: 28)
                 
-                if case .countdown(let seconds) = automationManager.state {
+                if case .countdown(let seconds) = automationState {
                     // Show countdown number
                     Text("\(seconds)")
                         .font(.caption.bold())
                         .foregroundColor(.orange)
                 } else {
                     // Show record dot
+                    let isRecording = automationState == .recording || automationState == .playingAndRecording
                     Circle()
                         .fill(recordButtonColor)
-                        .frame(width: automationManager.isRecording ? 10 : 8, height: automationManager.isRecording ? 10 : 8)
+                        .frame(width: isRecording ? 10 : 8, height: isRecording ? 10 : 8)
                 }
             }
         }
     }
     
     private var recordButtonColor: Color {
-        switch automationManager.state {
+        switch automationState {
         case .recording, .playingAndRecording:
             return .red
         case .countdown:
@@ -381,7 +395,7 @@ struct ShaderParametersView: View {
     }
     
     private func handleRecordButtonTap() {
-        switch automationManager.state {
+        switch automationState {
         case .idle, .playing:
             // Overdub - don't stop playback, start recording on top
             automationManager.startRecordingWithCountdown()
@@ -392,6 +406,14 @@ struct ShaderParametersView: View {
         }
     }
     
+    // MARK: - Update UI State from AutomationManager
+    
+    private func updateAutomationUIState() {
+        automationState = automationManager.state
+        hasRecording = automationManager.hasAnyRecording
+        displayPlaybackTime = automationManager.playbackTime
+    }
+    
     // MARK: - Clear Button
     
     private var clearButton: some View {
@@ -399,6 +421,7 @@ struct ShaderParametersView: View {
             automationManager.clearAllTracks()
             // Also clear saved automation data from shader
             shader.automationData = nil
+            updateAutomationUIState()
         } label: {
             ZStack {
                 Circle()
@@ -635,10 +658,11 @@ struct StyledSliderRow: View {
                 Rectangle()
                     .fill(Color(white: 0.15))
                 
-                // Filled portion
+                // Filled portion - ensure width is never negative or NaN
+                let fillWidth = max(0, geometry.size.width * CGFloat(max(0, min(1, normalizedValue))))
                 Rectangle()
                     .fill(color.opacity(0.7))
-                    .frame(width: geometry.size.width * CGFloat(normalizedValue))
+                    .frame(width: fillWidth.isFinite ? fillWidth : 0)
                 
                 // Label inside slider
                 HStack {
@@ -1061,7 +1085,8 @@ struct KnobView: View {
                 category: .custom,
                 author: "Test"
             ),
-            parametersVM: ShaderParametersViewModel()
+            parametersVM: ShaderParametersViewModel(),
+            automationManager: ParameterAutomationManager()
         )
     }
 }

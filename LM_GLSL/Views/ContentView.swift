@@ -47,6 +47,10 @@ struct ContentView: View {
     // Shared parameter view model - single instance for both Preview and Parameters views
     @StateObject private var parametersVM = ShaderParametersViewModel()
     
+    // Shared automation manager - NOT @StateObject since it's not ObservableObject
+    // This persists across all views so automation continues in Grid mode
+    @State private var automationManager = ParameterAutomationManager()
+    
     // Timer for parameter sync (30fps)
     private let parameterSyncTimer = Timer.publish(every: 1.0/30.0, on: .main, in: .common).autoconnect()
     @State private var shaderStartTime: Date = Date()
@@ -88,7 +92,8 @@ struct ContentView: View {
                             showingParametersView: $showingParametersView,
                             viewMode: $viewMode,
                             syncService: syncService,
-                            parametersVM: parametersVM
+                            parametersVM: parametersVM,
+                            automationManager: automationManager
                         )
                         .frame(width: geometry.size.width * 0.8)
                         
@@ -245,7 +250,7 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showingParametersView) {
             if let shader = selectedShader {
-                ShaderParametersView(shader: shader, parametersVM: parametersVM)
+                ShaderParametersView(shader: shader, parametersVM: parametersVM, automationManager: automationManager)
             }
         }
         .onAppear {
@@ -364,6 +369,17 @@ struct ContentView: View {
                 if let index = parametersVM.parameters.firstIndex(where: { $0.name == savedParam.name }) {
                     parametersVM.parameters[index].currentValue = savedParam.floatValue
                 }
+            }
+        }
+        
+        // Load and play automation from shader data
+        automationManager.loadAndPlay(from: shader.automationData)
+        
+        // Setup automation callback to update parameters during playback
+        automationManager.onParameterUpdate = { [weak parametersVM] name, value in
+            guard let vm = parametersVM else { return }
+            if let index = vm.parameters.firstIndex(where: { $0.name == name }) {
+                vm.parameters[index].currentValue = value
             }
         }
     }

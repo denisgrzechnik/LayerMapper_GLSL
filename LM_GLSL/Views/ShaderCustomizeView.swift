@@ -213,7 +213,7 @@ struct ShaderCustomizeView: View {
             Text("Are you sure you want to delete this shader? This action cannot be undone.")
         }
         .fullScreenCover(isPresented: $showingFullParameters) {
-            ShaderParametersView(shader: shader, parametersVM: parametersVM)
+            ShaderParametersView(shader: shader, parametersVM: parametersVM, automationManager: ParameterAutomationManager())
         }
     }
     

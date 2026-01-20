@@ -82,14 +82,17 @@ enum AutomationState: Equatable {
 }
 
 // MARK: - Automation Manager
+// NOTE: NOT ObservableObject - no SwiftUI observation to avoid expensive rebuilds
+// UI reads state directly via timer/polling
 
 @MainActor
-class ParameterAutomationManager: ObservableObject {
-    @Published var state: AutomationState = .idle
-    @Published var tracks: [String: ParameterAutomationTrack] = [:]  // parameterName -> track
-    @Published var playbackTime: Double = 0
-    @Published var loopDuration: Double = 0  // Max duration of all tracks
-    @Published var isLooping: Bool = true
+class ParameterAutomationManager {
+    // State - NOT @Published to avoid view rebuilds
+    var state: AutomationState = .idle
+    var tracks: [String: ParameterAutomationTrack] = [:]  // parameterName -> track
+    var playbackTime: Double = 0
+    var loopDuration: Double = 0  // Max duration of all tracks
+    var isLooping: Bool = true
     
     private var recordingStartTime: Date?
     private var playbackStartTime: Date?
