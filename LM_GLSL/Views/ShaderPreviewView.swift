@@ -128,6 +128,12 @@ struct ShaderPreviewView: View {
     // MARK: - Send Parameters to Sync
     
     private func sendParametersToSync() {
+        // Debug: always log first to confirm function is called
+        let debugNow = Date()
+        if Int(debugNow.timeIntervalSince1970 * 10) % 50 == 0 {
+            print("🔍 sendParametersToSync called - syncService: \(syncService != nil ? "EXISTS" : "NIL"), isAdvertising: \(syncService?.isAdvertising ?? false)")
+        }
+        
         guard let syncService = syncService,
               syncService.isAdvertising else { return }
         

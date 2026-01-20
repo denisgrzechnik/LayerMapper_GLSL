@@ -47,6 +47,10 @@ struct ContentView: View {
     // Shared parameter view model - single instance for both Preview and Parameters views
     @StateObject private var parametersVM = ShaderParametersViewModel()
     
+    // Timer for parameter sync (30fps)
+    private let parameterSyncTimer = Timer.publish(every: 1.0/30.0, on: .main, in: .common).autoconnect()
+    @State private var shaderStartTime: Date = Date()
+    
     private var filteredShaders: [ShaderEntity] {
         var result = allShaders
         
@@ -286,6 +290,26 @@ struct ContentView: View {
             } else {
                 syncService.stopParameterStreaming()
             }
+        }
+        .onReceive(parameterSyncTimer) { _ in
+            // Continuously update parameters in syncService regardless of view mode
+            guard syncService.isAdvertising, syncService.isConnected else { return }
+            
+            // Build parameter values from parametersVM
+            var paramValues: [String: Float] = [:]
+            for param in parametersVM.parameters {
+                paramValues[param.name] = param.currentValue
+            }
+            
+            // Calculate elapsed time since shader started
+            let elapsed = Date().timeIntervalSince(shaderStartTime)
+            
+            // Update sync service with current parameters
+            syncService.updateParameters(paramValues, time: elapsed)
+        }
+        .onChange(of: selectedShader?.id) { _, _ in
+            // Reset shader start time when shader changes
+            shaderStartTime = Date()
         }
         .onChange(of: store.hasCompletedInitialCheck) { oldValue, completed in
             if completed {

@@ -206,6 +206,10 @@ class ShaderSyncService: NSObject, ObservableObject {
     
     /// Update parameter values (called frequently during animation)
     func updateParameters(_ values: [String: Float], time: Double, beat: Double? = nil) {
+        // Debug: log occasionally
+        if Int(time * 10) % 50 == 0 {
+            print("📥 updateParameters called: params=\(values.count), time=\(String(format: "%.2f", time))")
+        }
         pendingParameterValues = values
         currentTime = time
         currentBeat = beat
@@ -230,6 +234,11 @@ class ShaderSyncService: NSObject, ObservableObject {
     // MARK: - Private Methods
     
     private func sendPendingParameterUpdate() {
+        // Debug: log guard conditions every 2 seconds
+        if Int(Date().timeIntervalSince1970 * 10) % 20 == 0 {
+            print("🔍 sendPendingParameterUpdate check: isConnected=\(isConnected), currentShader=\(currentShader?.shaderName ?? "NIL"), pendingCount=\(pendingParameterValues.count)")
+        }
+        
         guard isConnected,
               let shader = currentShader,
               !pendingParameterValues.isEmpty else { return }
