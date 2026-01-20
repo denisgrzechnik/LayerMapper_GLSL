@@ -63,6 +63,9 @@ final class ShaderEntity {
     // MARK: - Automation (jako JSON)
     var automationData: Data?
     
+    // MARK: - Automation Presets (16 slotów P1-P16, jako JSON)
+    var automationPresetsData: Data?
+    
     // MARK: - Thumbnail
     var thumbnailData: Data?
     var thumbnailColorHex: String = "#808080"

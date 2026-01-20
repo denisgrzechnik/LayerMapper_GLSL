@@ -148,6 +148,9 @@ struct ShaderParametersView: View {
                 }
             }
             
+            // Load automation presets from shader
+            automationManager.importPresetsFromData(shader.automationPresetsData)
+            
             // Initialize local UI state from automationManager
             updateAutomationUIState()
         }
@@ -155,6 +158,7 @@ struct ShaderParametersView: View {
             // Save parameters and automation when leaving
             saveChanges()
             shader.automationData = automationManager.exportToData()
+            shader.automationPresetsData = automationManager.exportPresetsToData()
             try? modelContext.save()
         }
         .onChange(of: shader.fragmentCode) { _, newCode in
@@ -323,6 +327,13 @@ struct ShaderParametersView: View {
                     }
                 }
             }
+            
+            // Animation Presets Panel (P1-P16)
+            AutomationPresetPanel(
+                automationManager: automationManager,
+                shader: shader,
+                hasRecording: hasRecording
+            )
         }
         .background(Color(white: 0.1))
     }
@@ -1064,6 +1075,154 @@ struct KnobView: View {
                 .font(.system(size: 8, weight: .medium))
                 .foregroundColor(.gray)
                 .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - Automation Preset Panel (P1-P16)
+// Panel presetów automatyzacji parametrów - wzorowany na LM_MApp
+
+struct AutomationPresetPanel: View {
+    var automationManager: ParameterAutomationManager
+    @Bindable var shader: ShaderEntity
+    var hasRecording: Bool
+    
+    // State do śledzenia presetów (odświeżane przy każdym dostępie)
+    @State private var presetStates: [Bool] = Array(repeating: false, count: 16)
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            // Header
+            HStack {
+                Text("PRESETS")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.gray)
+                
+                Spacer()
+                
+                // Info - pokaż liczbę zapisanych presetów
+                let savedCount = presetStates.filter { $0 }.count
+                if savedCount > 0 {
+                    Text("\(savedCount)/16")
+                        .font(.system(size: 9))
+                        .foregroundColor(.gray.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            
+            // Preset Grid (2 rzędy po 8 przycisków)
+            VStack(spacing: 4) {
+                // Górny rząd (P1-P8)
+                HStack(spacing: 4) {
+                    ForEach(0..<8, id: \.self) { index in
+                        AutomationPresetCell(
+                            index: index,
+                            hasPreset: presetStates[index],
+                            hasRecording: hasRecording,
+                            onTap: { loadPreset(index) },
+                            onLongPress: { savePreset(index) }
+                        )
+                    }
+                }
+                
+                // Dolny rząd (P9-P16)
+                HStack(spacing: 4) {
+                    ForEach(8..<16, id: \.self) { index in
+                        AutomationPresetCell(
+                            index: index,
+                            hasPreset: presetStates[index],
+                            hasRecording: hasRecording,
+                            onTap: { loadPreset(index) },
+                            onLongPress: { savePreset(index) }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
+        }
+        .background(Color(white: 0.08))
+        .onAppear {
+            // Załaduj presety z shadera przy starcie
+            automationManager.importPresetsFromData(shader.automationPresetsData)
+            updatePresetStates()
+        }
+    }
+    
+    private func updatePresetStates() {
+        for i in 0..<16 {
+            presetStates[i] = automationManager.hasPreset(at: i)
+        }
+    }
+    
+    private func loadPreset(_ index: Int) {
+        automationManager.loadPresetFromSlot(index: index)
+        print("📂 Loaded preset P\(index + 1)")
+    }
+    
+    private func savePreset(_ index: Int) {
+        guard hasRecording else {
+            print("⚠️ No automation to save - record first")
+            return
+        }
+        
+        automationManager.savePresetToSlot(index: index)
+        
+        // Zapisz do shadera (SwiftData)
+        shader.automationPresetsData = automationManager.exportPresetsToData()
+        
+        // Odśwież UI
+        updatePresetStates()
+        
+        print("💾 Saved preset P\(index + 1)")
+    }
+}
+
+// MARK: - Automation Preset Cell (pojedynczy przycisk P1-P16)
+
+struct AutomationPresetCell: View {
+    let index: Int
+    let hasPreset: Bool
+    let hasRecording: Bool
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+    
+    // Kolor akcentu (taki jak w LM_MApp)
+    private let accentColor = Color(red: 0xFE/255, green: 0x14/255, blue: 0x4D/255)
+    
+    var body: some View {
+        ZStack {
+            // Tło
+            Rectangle()
+                .fill(hasPreset ? accentColor : Color.gray.opacity(0.2))
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                )
+            
+            // Label
+            if hasPreset {
+                VStack(spacing: 1) {
+                    Text("P\(index + 1)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            } else {
+                Text("P\(index + 1)")
+                    .font(.system(size: 9))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+        .frame(height: 26)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if hasPreset {
+                onTap()
+            }
+        }
+        .onLongPressGesture(minimumDuration: 0.5) {
+            onLongPress()
         }
     }
 }

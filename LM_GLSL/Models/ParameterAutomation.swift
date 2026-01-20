@@ -381,4 +381,80 @@ class ParameterAutomationManager {
             startPlayback()
         }
     }
+    
+    // MARK: - Preset Management (P1-P16)
+    
+    /// Pojedynczy preset automatyzacji - zawiera stan tracków
+    struct AutomationPreset: Codable {
+        let index: Int  // 0-15 (P1-P16)
+        let tracks: [ParameterAutomationTrack]
+        let loopDuration: Double
+        let createdAt: Date
+    }
+    
+    /// 16 slotów presetów (nil = pusty slot)
+    var presets: [Int: AutomationPreset] = [:]
+    
+    /// Zapisz aktualną automatyzację do slotu
+    func savePresetToSlot(index: Int) {
+        guard hasAnyRecording else { return }
+        
+        let preset = AutomationPreset(
+            index: index,
+            tracks: Array(tracks.values),
+            loopDuration: loopDuration,
+            createdAt: Date()
+        )
+        presets[index] = preset
+        print("💾 Saved automation preset to slot P\(index + 1) (\(tracks.count) tracks)")
+    }
+    
+    /// Wczytaj preset ze slotu
+    func loadPresetFromSlot(index: Int) {
+        guard let preset = presets[index] else {
+            print("⚠️ No preset in slot P\(index + 1)")
+            return
+        }
+        
+        // Zastąp aktualne tracki presetem
+        tracks = Dictionary(uniqueKeysWithValues: preset.tracks.map { ($0.parameterName, $0) })
+        loopDuration = preset.loopDuration
+        
+        print("📂 Loaded automation preset from P\(index + 1) (\(tracks.count) tracks)")
+        
+        // Auto-start playback
+        if hasAnyRecording {
+            startPlayback()
+        }
+    }
+    
+    /// Sprawdź czy slot ma preset
+    func hasPreset(at index: Int) -> Bool {
+        return presets[index] != nil
+    }
+    
+    /// Pobierz liczbę tracków w presecie
+    func trackCount(at index: Int) -> Int {
+        return presets[index]?.tracks.count ?? 0
+    }
+    
+    /// Eksportuj presety do Data
+    func exportPresetsToData() -> Data? {
+        guard !presets.isEmpty else { return nil }
+        let presetsArray = Array(presets.values)
+        return try? JSONEncoder().encode(presetsArray)
+    }
+    
+    /// Importuj presety z Data
+    func importPresetsFromData(_ data: Data?) {
+        guard let data = data else { return }
+        
+        do {
+            let presetsArray = try JSONDecoder().decode([AutomationPreset].self, from: data)
+            presets = Dictionary(uniqueKeysWithValues: presetsArray.map { ($0.index, $0) })
+            print("📥 Imported \(presets.count) automation presets")
+        } catch {
+            print("Failed to decode automation presets: \(error)")
+        }
+    }
 }
