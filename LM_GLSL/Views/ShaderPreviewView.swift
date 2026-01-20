@@ -47,7 +47,7 @@ struct ShaderPreviewView: View {
                             shaderCode: shader.fragmentCode,
                             isPlaying: $isPlaying,
                             currentTime: $currentTime,
-                            parameters: parametersVM.parameters
+                            parametersVM: parametersVM
                         )
                         .frame(width: previewSize.width, height: previewSize.height)
                     } else {
@@ -444,12 +444,18 @@ struct FlowLayout: Layout {
 }
 
 // MARK: - Metal Shader View
+// RADYKALNA OPTYMALIZACJA: Całkowite odłączenie parametrów od SwiftUI diff
+// - Coordinator przechowuje WŁASNĄ referencję do ViewModel
+// - updateUIView NIGDY nie przekazuje parametrów
+// - Parametry są pobierane bezpośrednio w draw() przez zapisaną referencję
 
 struct MetalShaderView: UIViewRepresentable {
     let shaderCode: String
     @Binding var isPlaying: Bool
     @Binding var currentTime: Double
-    var parameters: [ShaderParameter] = []
+    
+    // Referencja do ViewModel - przekazywana do Coordinatora w makeCoordinator
+    var parametersVM: ShaderParametersViewModel?
     
     func makeUIView(context: Context) -> MTKView {
         let mtkView = MTKView()
@@ -464,13 +470,17 @@ struct MetalShaderView: UIViewRepresentable {
             context.coordinator.setupMetal(device: device, shaderCode: shaderCode)
         }
         
+        // WAŻNE: Zapisz referencję do VM w Coordinatorze - to jednorazowe!
+        context.coordinator.parametersVM = parametersVM
+        
         return mtkView
     }
     
     func updateUIView(_ uiView: MTKView, context: Context) {
+        // TYLKO isPaused i shader code - NIGDY parametry!
         uiView.isPaused = !isPlaying
         context.coordinator.updateShader(shaderCode)
-        context.coordinator.updateParameters(parameters)
+        // Coordinator już ma referencję do VM - nie musimy nic przekazywać
     }
     
     func makeCoordinator() -> Coordinator {
@@ -484,11 +494,17 @@ struct MetalShaderView: UIViewRepresentable {
         var pipelineState: MTLRenderPipelineState?
         var startTime: Date = Date()
         var currentShaderCode: String = ""
-        var currentParameters: [ShaderParameter] = []
-        var shaderExpectsParams: Bool = false  // Track if compiled shader expects params
+        
+        // WŁASNA referencja do ViewModel - NIE przez parent!
+        var parametersVM: ShaderParametersViewModel?
+        
+        // Parametry sparsowane jednorazowo przy tworzeniu pipeline
+        var parameterNames: [String] = []
+        var parameterDefaults: [String: Float] = [:]
         
         init(_ parent: MetalShaderView) {
             self.parent = parent
+            super.init()
         }
         
         func setupMetal(device: MTLDevice, shaderCode: String) {
@@ -505,15 +521,16 @@ struct MetalShaderView: UIViewRepresentable {
             createPipelineState(shaderCode: shaderCode)
         }
         
-        func updateParameters(_ parameters: [ShaderParameter]) {
-            currentParameters = parameters
-        }
-        
         func createPipelineState(shaderCode: String) {
             guard let device = device else { return }
             
+            // Parsuj parametry JEDNORAZOWO przy tworzeniu pipeline
+            let parsedParams = ShaderParameterParser.parseParameters(from: shaderCode)
+            parameterNames = parsedParams.map { $0.name }
+            parameterDefaults = parsedParams.reduce(into: [:]) { $0[$1.name] = $1.defaultValue }
+            
             // Build full Metal shader
-            let fullShader = buildMetalShader(from: shaderCode)
+            let fullShader = buildMetalShader(from: shaderCode, parameters: parsedParams)
             
             do {
                 let library = try device.makeLibrary(source: fullShader, options: nil)
@@ -528,13 +545,15 @@ struct MetalShaderView: UIViewRepresentable {
                 pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
             } catch {
                 print("Failed to create pipeline state: \(error)")
-                // Create fallback shader
                 createFallbackPipeline()
             }
         }
         
         func createFallbackPipeline() {
             guard let device = device else { return }
+            
+            parameterNames = []
+            parameterDefaults = [:]
             
             let fallbackShader = """
             #include <metal_stdlib>
@@ -580,19 +599,11 @@ struct MetalShaderView: UIViewRepresentable {
             }
         }
         
-        func buildMetalShader(from fragmentBody: String) -> String {
-            // Parse parameters from code
-            let parameters = ShaderParameterParser.parseParameters(from: fragmentBody)
-            
-            // Track if this shader expects parameters
-            shaderExpectsParams = !parameters.isEmpty
-            
-            // Build parameter declarations for fragment shader
+        func buildMetalShader(from fragmentBody: String, parameters: [ShaderParameter]) -> String {
             var paramDeclarations = ""
             var paramBufferArg = ""
             
             if !parameters.isEmpty {
-                // Create struct for parameters
                 paramDeclarations = """
                 
                 struct ShaderParams {
@@ -603,16 +614,13 @@ struct MetalShaderView: UIViewRepresentable {
                 paramBufferArg = ", constant ShaderParams &params [[buffer(1)]]"
             }
             
-            // Strip @param and @toggle comments from the body for cleaner code
             let cleanBody = fragmentBody
                 .components(separatedBy: "\n")
                 .filter { !$0.contains("@param") && !$0.contains("@toggle") }
                 .joined(separator: "\n")
             
-            // Replace parameter names with params.name
             var processedBody = cleanBody
             for param in parameters {
-                // Replace standalone parameter names (not part of other words)
                 let pattern = "\\b\(param.name)\\b"
                 if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
                     processedBody = regex.stringByReplacingMatches(
@@ -642,7 +650,7 @@ struct MetalShaderView: UIViewRepresentable {
                 VertexOut out;
                 out.position = float4(positions[vertexID], 0, 1);
                 out.uv = positions[vertexID] * 0.5 + 0.5;
-                out.uv.y = 1.0 - out.uv.y; // Flip Y
+                out.uv.y = 1.0 - out.uv.y;
                 return out;
             }
             
@@ -665,8 +673,12 @@ struct MetalShaderView: UIViewRepresentable {
             }
             
             let elapsed = Date().timeIntervalSince(startTime)
-            DispatchQueue.main.async {
-                self.parent.currentTime = elapsed
+            
+            // Throttled time update - tylko gdy różnica > 0.1s (dla UI display)
+            if abs(parent.currentTime - elapsed) > 0.1 {
+                DispatchQueue.main.async { [weak self] in
+                    self?.parent.currentTime = elapsed
+                }
             }
             
             var time = Float(elapsed)
@@ -674,20 +686,26 @@ struct MetalShaderView: UIViewRepresentable {
             encoder.setRenderPipelineState(pipelineState)
             encoder.setFragmentBytes(&time, length: MemoryLayout<Float>.size, index: 0)
             
-            // Pass parameters to shader only if shader expects them
-            if shaderExpectsParams {
-                // Get parameters from code to ensure correct order
-                let codeParams = ShaderParameterParser.parseParameters(from: currentShaderCode)
-                
-                // Build values array matching the order in code
+            // BEZPOŚREDNI dostęp do parametrów przez WŁASNĄ referencję do ViewModel
+            if !parameterNames.isEmpty {
                 var paramValues: [Float] = []
-                for codeParam in codeParams {
-                    // Find matching parameter from UI (by name)
-                    if let uiParam = currentParameters.first(where: { $0.name == codeParam.name }) {
-                        paramValues.append(uiParam.currentValue)
+                
+                // Pobierz wartości - MTKViewDelegate.draw() jest ZAWSZE wywoływany na main thread
+                // więc możemy bezpiecznie użyć MainActor.assumeIsolated
+                MainActor.assumeIsolated { [self] in
+                    if let vm = self.parametersVM {
+                        for name in self.parameterNames {
+                            if let param = vm.parameters.first(where: { $0.name == name }) {
+                                paramValues.append(param.currentValue)
+                            } else {
+                                paramValues.append(self.parameterDefaults[name] ?? 0.5)
+                            }
+                        }
                     } else {
-                        // Use default value if not found in UI
-                        paramValues.append(codeParam.defaultValue)
+                        // Fallback: użyj domyślnych wartości
+                        for name in self.parameterNames {
+                            paramValues.append(self.parameterDefaults[name] ?? 0.5)
+                        }
                     }
                 }
                 

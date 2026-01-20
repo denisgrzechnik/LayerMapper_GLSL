@@ -465,7 +465,7 @@ struct FullscreenShaderOverlayTopLevel: View {
                     shaderCode: shader.fragmentCode,
                     isPlaying: $isPlaying,
                     currentTime: $currentTime,
-                    parameters: parametersVM.parameters
+                    parametersVM: parametersVM
                 )
                 .ignoresSafeArea()
             }

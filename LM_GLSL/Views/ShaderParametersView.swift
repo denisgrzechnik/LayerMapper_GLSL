@@ -169,7 +169,7 @@ struct ShaderParametersView: View {
                 shaderCode: shader.fragmentCode,
                 isPlaying: $isPlaying,
                 currentTime: $currentTime,
-                parameters: parametersVM.parameters
+                parametersVM: parametersVM
             )
             .ignoresSafeArea()
             .onTapGesture(count: 2) {
@@ -215,7 +215,7 @@ struct ShaderParametersView: View {
                 shaderCode: shader.fragmentCode,
                 isPlaying: $isPlaying,
                 currentTime: $currentTime,
-                parameters: parametersVM.parameters
+                parametersVM: parametersVM
             )
             .aspectRatio(16.0/9.0, contentMode: .fit)
             .clipped()
@@ -298,16 +298,16 @@ struct ShaderParametersView: View {
                             .foregroundColor(.gray)
                             .padding()
                     } else {
-                        ForEach(Array(sliderParams.enumerated()), id: \.element.id) { index, _ in
-                            if let paramIndex = parametersVM.parameters.firstIndex(where: { $0.id == sliderParams[index].id }) {
-                                StyledSliderRow(
-                                    parameter: $parametersVM.parameters[paramIndex],
-                                    color: sliderColor(for: index),
-                                    onValueChanged: { name, value in
-                                        automationManager.recordParameterChange(name: name, value: value)
-                                    }
-                                )
-                            }
+                        ForEach(Array(sliderParams.enumerated()), id: \.element.id) { index, param in
+                            StyledSliderRow(
+                                parameter: param,  // Przekaż wartość, NIE binding!
+                                color: sliderColor(for: index),
+                                onValueChanged: { name, value in
+                                    // Aktualizuj ViewModel bezpośrednio - BEZ przebudowy widoku!
+                                    parametersVM.updateParameter(id: param.id, value: value)
+                                    automationManager.recordParameterChange(name: name, value: value)
+                                }
+                            )
                         }
                     }
                 }
@@ -437,17 +437,35 @@ struct ShaderParametersView: View {
             Group {
                 switch selectedControlPanel {
                 case .grid:
-                    ButtonGridPanel(parameters: $parametersVM.parameters) { name, value in
-                        automationManager.recordParameterChange(name: name, value: value)
-                    }
+                    ButtonGridPanel(
+                        parameters: parametersVM.parameters,
+                        onToggle: { id, value in
+                            parametersVM.updateParameter(id: id, value: value)
+                        },
+                        onValueChanged: { name, value in
+                            automationManager.recordParameterChange(name: name, value: value)
+                        }
+                    )
                 case .pad:
-                    XYPadPanel(parameters: $parametersVM.parameters) { name, value in
-                        automationManager.recordParameterChange(name: name, value: value)
-                    }
+                    XYPadPanel(
+                        parameters: parametersVM.parameters,
+                        onUpdate: { id, value in
+                            parametersVM.updateParameter(id: id, value: value)
+                        },
+                        onValueChanged: { name, value in
+                            automationManager.recordParameterChange(name: name, value: value)
+                        }
+                    )
                 case .knobs:
-                    KnobsPanel(parameters: $parametersVM.parameters) { name, value in
-                        automationManager.recordParameterChange(name: name, value: value)
-                    }
+                    KnobsPanel(
+                        parameters: parametersVM.parameters,
+                        onUpdate: { id, value in
+                            parametersVM.updateParameter(id: id, value: value)
+                        },
+                        onValueChanged: { name, value in
+                            automationManager.recordParameterChange(name: name, value: value)
+                        }
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -600,11 +618,15 @@ struct ShaderParametersView: View {
 }
 
 // MARK: - Styled Slider Row (like screenshot)
+// OPTYMALIZACJA: Używa własnego @State zamiast @Binding - zmiana wartości NIE powoduje przebudowy rodzica!
 
 struct StyledSliderRow: View {
-    @Binding var parameter: ShaderParameter
+    let parameter: ShaderParameter  // NIE @Binding - tylko odczyt początkowej wartości
     let color: Color
     var onValueChanged: ((String, Float) -> Void)? = nil
+    
+    // Lokalny stan - zmiana nie propaguje się do rodzica
+    @State private var currentValue: Float = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -627,7 +649,7 @@ struct StyledSliderRow: View {
                     
                     Spacer()
                     
-                    Text(String(format: "%.2f", parameter.currentValue))
+                    Text(String(format: "%.2f", currentValue))
                         .font(.system(size: 10, weight: .regular, design: .monospaced))
                         .foregroundColor(.white.opacity(0.6))
                         .padding(.trailing, 10)
@@ -638,23 +660,30 @@ struct StyledSliderRow: View {
                     .onChanged { value in
                         let percentage = max(0, min(1, value.location.x / geometry.size.width))
                         let newValue = parameter.minValue + Float(percentage) * (parameter.maxValue - parameter.minValue)
-                        parameter.currentValue = newValue
+                        currentValue = newValue
+                        // Callback aktualizuje ViewModel bezpośrednio - BEZ przebudowy widoku!
                         onValueChanged?(parameter.name, newValue)
                     }
             )
         }
         .frame(height: 36)
+        .onAppear {
+            // Zainicjuj lokalny stan z parametru
+            currentValue = parameter.currentValue
+        }
     }
     
     private var normalizedValue: Float {
-        (parameter.currentValue - parameter.minValue) / (parameter.maxValue - parameter.minValue)
+        (currentValue - parameter.minValue) / (parameter.maxValue - parameter.minValue)
     }
 }
 
 // MARK: - Button Grid Panel
+// OPTYMALIZACJA: NIE używa @Binding - zmiana wartości NIE powoduje przebudowy rodzica!
 
 struct ButtonGridPanel: View {
-    @Binding var parameters: [ShaderParameter]
+    let parameters: [ShaderParameter]  // NIE @Binding!
+    var onToggle: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
     let columns = [
@@ -680,17 +709,14 @@ struct ButtonGridPanel: View {
                     }
                 } else {
                     ForEach(Array(toggleParams.enumerated()), id: \.element.id) { index, param in
-                        if let paramIndex = parameters.firstIndex(where: { $0.id == param.id }) {
-                            GridButton(
-                                label: param.displayName,
-                                isActive: parameters[paramIndex].currentValue > 0.5,
-                                color: gridColor(for: index)
-                            ) {
-                                let newValue: Float = parameters[paramIndex].currentValue > 0.5 ? 0.0 : 1.0
-                                parameters[paramIndex].currentValue = newValue
+                        ToggleGridButton(
+                            param: param,
+                            color: gridColor(for: index),
+                            onToggle: { newValue in
+                                onToggle?(param.id, newValue)
                                 onValueChanged?(param.name, newValue)
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -702,6 +728,37 @@ struct ButtonGridPanel: View {
         let row = index / 4
         let colors: [Color] = [.green, .yellow, .orange, .red]
         return colors[row % colors.count]
+    }
+}
+
+// Toggle button with local state
+struct ToggleGridButton: View {
+    let param: ShaderParameter
+    let color: Color
+    let onToggle: (Float) -> Void
+    
+    @State private var isActive: Bool = false
+    
+    var body: some View {
+        Button {
+            isActive.toggle()
+            onToggle(isActive ? 1.0 : 0.0)
+        } label: {
+            Rectangle()
+                .fill(isActive ? color : color.opacity(0.3))
+                .overlay(
+                    Text(param.displayName)
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(2)
+                )
+                .aspectRatio(1, contentMode: .fit)
+        }
+        .onAppear {
+            isActive = param.currentValue > 0.5
+        }
     }
 }
 
@@ -729,9 +786,11 @@ struct GridButton: View {
 }
 
 // MARK: - XY Pad Panel
+// OPTYMALIZACJA: NIE używa @Binding!
 
 struct XYPadPanel: View {
-    @Binding var parameters: [ShaderParameter]
+    let parameters: [ShaderParameter]  // NIE @Binding!
+    var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
     @State private var padPosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
@@ -785,25 +844,27 @@ struct XYPadPanel: View {
     private func updateXYParameters() {
         // Map pad X to first slider parameter, Y to second
         let sliderParams = parameters.filter { $0.type == .slider }
-        if sliderParams.count >= 1,
-           let index = parameters.firstIndex(where: { $0.id == sliderParams[0].id }) {
-            let newValue = parameters[index].minValue + Float(padPosition.x) * (parameters[index].maxValue - parameters[index].minValue)
-            parameters[index].currentValue = newValue
-            onValueChanged?(sliderParams[0].name, newValue)
+        if sliderParams.count >= 1 {
+            let param = sliderParams[0]
+            let newValue = param.minValue + Float(padPosition.x) * (param.maxValue - param.minValue)
+            onUpdate?(param.id, newValue)
+            onValueChanged?(param.name, newValue)
         }
-        if sliderParams.count >= 2,
-           let index = parameters.firstIndex(where: { $0.id == sliderParams[1].id }) {
-            let newValue = parameters[index].minValue + Float(1 - padPosition.y) * (parameters[index].maxValue - parameters[index].minValue)
-            parameters[index].currentValue = newValue
-            onValueChanged?(sliderParams[1].name, newValue)
+        if sliderParams.count >= 2 {
+            let param = sliderParams[1]
+            let newValue = param.minValue + Float(1 - padPosition.y) * (param.maxValue - param.minValue)
+            onUpdate?(param.id, newValue)
+            onValueChanged?(param.name, newValue)
         }
     }
 }
 
 // MARK: - Knobs Panel
+// OPTYMALIZACJA: NIE używa @Binding!
 
 struct KnobsPanel: View {
-    @Binding var parameters: [ShaderParameter]
+    let parameters: [ShaderParameter]  // NIE @Binding!
+    var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
     let columns = [
@@ -820,32 +881,21 @@ struct KnobsPanel: View {
                 
                 if sliderParams.isEmpty {
                     ForEach(0..<8, id: \.self) { index in
-                        KnobView(
+                        PlaceholderKnobView(
                             label: "KNOB \(index + 1)",
-                            value: .constant(0.5),
                             color: knobColor(for: index)
                         )
                     }
                 } else {
                     ForEach(Array(sliderParams.enumerated()), id: \.element.id) { index, param in
-                        if let paramIndex = parameters.firstIndex(where: { $0.id == param.id }) {
-                            KnobView(
-                                label: param.displayName,
-                                value: Binding(
-                                    get: { 
-                                        (parameters[paramIndex].currentValue - parameters[paramIndex].minValue) / 
-                                        (parameters[paramIndex].maxValue - parameters[paramIndex].minValue)
-                                    },
-                                    set: { newValue in
-                                        let actualValue = parameters[paramIndex].minValue + 
-                                            newValue * (parameters[paramIndex].maxValue - parameters[paramIndex].minValue)
-                                        parameters[paramIndex].currentValue = actualValue
-                                        onValueChanged?(param.name, actualValue)
-                                    }
-                                ),
-                                color: knobColor(for: index)
-                            )
-                        }
+                        OptimizedKnobView(
+                            param: param,
+                            color: knobColor(for: index),
+                            onUpdate: { newValue in
+                                onUpdate?(param.id, newValue)
+                                onValueChanged?(param.name, newValue)
+                            }
+                        )
                     }
                 }
             }
@@ -856,6 +906,90 @@ struct KnobsPanel: View {
     private func knobColor(for index: Int) -> Color {
         let colors: [Color] = [.orange, .cyan, .purple, .green, .yellow, .pink]
         return colors[index % colors.count]
+    }
+}
+
+// Placeholder knob (no interaction)
+struct PlaceholderKnobView: View {
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .stroke(Color(white: 0.3), lineWidth: 3)
+                Circle()
+                    .fill(Color(white: 0.15))
+                    .padding(6)
+            }
+            .frame(width: 50, height: 50)
+            
+            Text(label)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+        }
+    }
+}
+
+// Optimized knob with local state
+struct OptimizedKnobView: View {
+    let param: ShaderParameter
+    let color: Color
+    let onUpdate: (Float) -> Void
+    
+    @State private var normalizedValue: Float = 0.5
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                // Outer ring
+                Circle()
+                    .stroke(Color(white: 0.3), lineWidth: 3)
+                
+                // Value arc
+                Circle()
+                    .trim(from: 0, to: CGFloat(normalizedValue) * 0.75)
+                    .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(135))
+                
+                // Inner circle
+                Circle()
+                    .fill(Color(white: 0.15))
+                    .padding(6)
+                
+                // Indicator line
+                Rectangle()
+                    .fill(color)
+                    .frame(width: 2, height: 15)
+                    .offset(y: -12)
+                    .rotationEffect(.degrees(Double(normalizedValue) * 270 - 135))
+            }
+            .frame(width: 50, height: 50)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let vector = CGVector(dx: gesture.location.x - 25, dy: gesture.location.y - 25)
+                        let angle = atan2(vector.dy, vector.dx)
+                        let newNormalized = max(0, min(1, Float((angle + .pi) / (2 * .pi))))
+                        normalizedValue = newNormalized
+                        
+                        // Convert to actual value and update
+                        let actualValue = param.minValue + newNormalized * (param.maxValue - param.minValue)
+                        onUpdate(actualValue)
+                    }
+            )
+            
+            Text(param.displayName)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+        }
+        .onAppear {
+            // Initialize from parameter
+            normalizedValue = (param.currentValue - param.minValue) / (param.maxValue - param.minValue)
+        }
     }
 }
 

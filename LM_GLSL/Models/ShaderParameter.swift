@@ -156,10 +156,16 @@ class ShaderParameterParser {
 }
 
 // MARK: - Parameters View Model
+// OPTYMALIZACJA: parameters NIE jest @Published - zmiana wartości NIE powoduje przebudowy widoku!
+// UI sliderów używa własnych @State bindings, a Metal pobiera wartości bezpośrednio.
 
 @MainActor
 class ShaderParametersViewModel: ObservableObject {
-    @Published var parameters: [ShaderParameter] = []
+    // NIE @Published! Zmiana wartości NIE powoduje przebudowy widoku SwiftUI
+    var parameters: [ShaderParameter] = []
+    
+    // Tylko to jest @Published - do aktualizacji listy parametrów (gdy zmienia się shader)
+    @Published var parametersVersion: Int = 0
     
     func updateFromCode(_ code: String) {
         let newParams = ShaderParameterParser.parseParameters(from: code)
@@ -177,14 +183,15 @@ class ShaderParametersViewModel: ObservableObject {
         }
         
         parameters = updatedParams
+        // Powiadom UI że lista parametrów się zmieniła (np. inny shader)
+        parametersVersion += 1
     }
     
     func resetToDefaults() {
-        parameters = parameters.map { param in
-            var updated = param
-            updated.currentValue = param.defaultValue
-            return updated
+        for i in parameters.indices {
+            parameters[i].currentValue = parameters[i].defaultValue
         }
+        // NIE aktualizujemy parametersVersion - nie chcemy przebudowy widoku
     }
     
     func getParameterValues() -> [String: Float] {
@@ -198,6 +205,12 @@ class ShaderParametersViewModel: ObservableObject {
     func updateParameter(id: UUID, value: Float) {
         if let index = parameters.firstIndex(where: { $0.id == id }) {
             parameters[index].currentValue = value
+            // NIE wywołujemy objectWillChange - nie chcemy przebudowy widoku!
         }
+    }
+    
+    // Bezpośredni dostęp do wartości parametru (dla Metal renderera)
+    func getValue(for name: String) -> Float? {
+        return parameters.first(where: { $0.name == name })?.currentValue
     }
 }

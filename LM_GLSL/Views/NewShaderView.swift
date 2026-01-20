@@ -44,7 +44,7 @@ struct NewShaderView: View {
                         shaderCode: code,
                         isPlaying: .constant(true),
                         currentTime: .constant(0),
-                        parameters: parametersVM.parameters
+                        parametersVM: parametersVM
                     )
                     .frame(height: 200)
                     .padding(.horizontal, 10)
@@ -53,8 +53,13 @@ struct NewShaderView: View {
                     // Parameter controls (sliders and toggles)
                     if !parametersVM.parameters.isEmpty {
                         VStack(spacing: 1) {
-                            ForEach($parametersVM.parameters) { $param in
-                                ParameterControlRow(parameter: $param)
+                            ForEach(parametersVM.parameters) { param in
+                                ParameterControlRow(
+                                    parameter: param,
+                                    onUpdate: { newValue in
+                                        parametersVM.updateParameter(id: param.id, value: newValue)
+                                    }
+                                )
                             }
                         }
                         .padding(.horizontal, 10)
@@ -404,26 +409,31 @@ struct HelpRow: View {
 }
 
 // MARK: - Parameter Control Row (Slider or Toggle)
+// OPTYMALIZACJA: NIE używa @Binding!
 
 struct ParameterControlRow: View {
-    @Binding var parameter: ShaderParameter
+    let parameter: ShaderParameter  // NIE @Binding!
+    var onUpdate: ((Float) -> Void)? = nil
     
     var body: some View {
         Group {
             switch parameter.type {
             case .slider:
-                ParameterSliderRow(parameter: $parameter)
+                ParameterSliderRow(parameter: parameter, onUpdate: onUpdate)
             case .toggle:
-                ParameterToggleRow(parameter: $parameter)
+                ParameterToggleRow(parameter: parameter, onUpdate: onUpdate)
             }
         }
     }
 }
 
-// MARK: - Parameter Slider Row
+// MARK: - Parameter Slider Row (Optimized)
 
 struct ParameterSliderRow: View {
-    @Binding var parameter: ShaderParameter
+    let parameter: ShaderParameter  // NIE @Binding!
+    var onUpdate: ((Float) -> Void)? = nil
+    
+    @State private var value: Float = 0
     
     var body: some View {
         VStack(spacing: 4) {
@@ -434,13 +444,19 @@ struct ParameterSliderRow: View {
                 
                 Spacer()
                 
-                Text(String(format: "%.2f", parameter.currentValue))
+                Text(String(format: "%.2f", value))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.gray)
             }
             
             Slider(
-                value: $parameter.currentValue,
+                value: Binding(
+                    get: { value },
+                    set: { newValue in
+                        value = newValue
+                        onUpdate?(newValue)
+                    }
+                ),
                 in: parameter.minValue...parameter.maxValue
             )
             .tint(Color(red: 254/255, green: 20/255, blue: 77/255))
@@ -448,13 +464,19 @@ struct ParameterSliderRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(UIColor.secondarySystemBackground))
+        .onAppear {
+            value = parameter.currentValue
+        }
     }
 }
 
-// MARK: - Parameter Toggle Row
+// MARK: - Parameter Toggle Row (Optimized)
 
 struct ParameterToggleRow: View {
-    @Binding var parameter: ShaderParameter
+    let parameter: ShaderParameter  // NIE @Binding!
+    var onUpdate: ((Float) -> Void)? = nil
+    
+    @State private var isOn: Bool = false
     
     var body: some View {
         HStack {
@@ -465,8 +487,11 @@ struct ParameterToggleRow: View {
             Spacer()
             
             Toggle("", isOn: Binding(
-                get: { parameter.currentValue > 0.5 },
-                set: { parameter.currentValue = $0 ? 1.0 : 0.0 }
+                get: { isOn },
+                set: { newValue in
+                    isOn = newValue
+                    onUpdate?(newValue ? 1.0 : 0.0)
+                }
             ))
             .tint(Color(red: 254/255, green: 20/255, blue: 77/255))
             .labelsHidden()
@@ -474,6 +499,9 @@ struct ParameterToggleRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(UIColor.secondarySystemBackground))
+        .onAppear {
+            isOn = parameter.currentValue > 0.5
+        }
     }
 }
 
