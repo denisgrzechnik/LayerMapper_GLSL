@@ -266,6 +266,11 @@ struct ShaderParametersView: View {
                 // Record button (always visible) - simple dot
                 recordButton
                 
+                // Clear button (only when recording exists)
+                if automationManager.hasAnyRecording {
+                    clearButton
+                }
+                
                 // Close button
                 Button {
                     saveChanges()
@@ -384,6 +389,26 @@ struct ShaderParametersView: View {
             automationManager.cancelCountdown()
         case .recording, .playingAndRecording:
             automationManager.stopRecording()
+        }
+    }
+    
+    // MARK: - Clear Button
+    
+    private var clearButton: some View {
+        Button {
+            automationManager.clearAllTracks()
+            // Also clear saved automation data from shader
+            shader.automationData = nil
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 28, height: 28)
+                
+                Image(systemName: "trash")
+                    .font(.system(size: 12))
+                    .foregroundColor(.gray)
+            }
         }
     }
     
