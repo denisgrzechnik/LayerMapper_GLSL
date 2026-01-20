@@ -428,6 +428,17 @@ class ParameterAutomationManager {
         }
     }
     
+    /// Usuń preset ze slotu
+    func deletePresetFromSlot(index: Int) {
+        guard presets[index] != nil else {
+            print("⚠️ No preset to delete in slot P\(index + 1)")
+            return
+        }
+        
+        presets.removeValue(forKey: index)
+        print("🗑 Deleted automation preset from slot P\(index + 1)")
+    }
+    
     /// Sprawdź czy slot ma preset
     func hasPreset(at index: Int) -> Bool {
         return presets[index] != nil

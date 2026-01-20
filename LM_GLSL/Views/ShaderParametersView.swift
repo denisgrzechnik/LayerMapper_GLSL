@@ -81,7 +81,15 @@ struct ShaderParametersView: View {
                     VStack(spacing: 0) {
                         // Top-right: Sliders
                         slidersPanel
-                            .frame(height: geometry.size.height * 0.6)
+                            .frame(height: geometry.size.height * 0.45)
+                        
+                        // Middle-right: Animation Presets (P1-P16)
+                        AutomationPresetPanel(
+                            automationManager: automationManager,
+                            shader: shader,
+                            hasRecording: hasRecording
+                        )
+                        .frame(height: geometry.size.height * 0.15)
                         
                         // Bottom-right: AI Generator
                         aiGeneratorPanel
@@ -97,6 +105,13 @@ struct ShaderParametersView: View {
                         
                         slidersPanel
                             .frame(minHeight: 200)
+                        
+                        // Animation Presets Panel (P1-P16)
+                        AutomationPresetPanel(
+                            automationManager: automationManager,
+                            shader: shader,
+                            hasRecording: hasRecording
+                        )
                         
                         controlPanelsSection
                             .frame(height: 250)
@@ -327,13 +342,6 @@ struct ShaderParametersView: View {
                     }
                 }
             }
-            
-            // Animation Presets Panel (P1-P16)
-            AutomationPresetPanel(
-                automationManager: automationManager,
-                shader: shader,
-                hasRecording: hasRecording
-            )
         }
         .background(Color(white: 0.1))
     }
@@ -1121,7 +1129,8 @@ struct AutomationPresetPanel: View {
                             hasPreset: presetStates[index],
                             hasRecording: hasRecording,
                             onTap: { loadPreset(index) },
-                            onLongPress: { savePreset(index) }
+                            onLongPressSave: { savePreset(index) },
+                            onLongPressDelete: { deletePreset(index) }
                         )
                     }
                 }
@@ -1134,7 +1143,8 @@ struct AutomationPresetPanel: View {
                             hasPreset: presetStates[index],
                             hasRecording: hasRecording,
                             onTap: { loadPreset(index) },
-                            onLongPress: { savePreset(index) }
+                            onLongPressSave: { savePreset(index) },
+                            onLongPressDelete: { deletePreset(index) }
                         )
                     }
                 }
@@ -1177,6 +1187,18 @@ struct AutomationPresetPanel: View {
         
         print("💾 Saved preset P\(index + 1)")
     }
+    
+    private func deletePreset(_ index: Int) {
+        automationManager.deletePresetFromSlot(index: index)
+        
+        // Zapisz do shadera (SwiftData)
+        shader.automationPresetsData = automationManager.exportPresetsToData()
+        
+        // Odśwież UI
+        updatePresetStates()
+        
+        print("🗑 Deleted preset P\(index + 1)")
+    }
 }
 
 // MARK: - Automation Preset Cell (pojedynczy przycisk P1-P16)
@@ -1186,7 +1208,8 @@ struct AutomationPresetCell: View {
     let hasPreset: Bool
     let hasRecording: Bool
     let onTap: () -> Void
-    let onLongPress: () -> Void
+    let onLongPressSave: () -> Void
+    let onLongPressDelete: () -> Void
     
     // Kolor akcentu (taki jak w LM_MApp)
     private let accentColor = Color(red: 0xFE/255, green: 0x14/255, blue: 0x4D/255)
@@ -1222,7 +1245,13 @@ struct AutomationPresetCell: View {
             }
         }
         .onLongPressGesture(minimumDuration: 0.5) {
-            onLongPress()
+            if hasPreset {
+                // Jeśli preset istnieje - usuń go
+                onLongPressDelete()
+            } else if hasRecording {
+                // Jeśli nie ma presetu ale jest nagranie - zapisz
+                onLongPressSave()
+            }
         }
     }
 }
