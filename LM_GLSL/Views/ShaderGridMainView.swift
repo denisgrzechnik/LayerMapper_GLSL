@@ -383,6 +383,10 @@ struct GridShaderItem: View {
                         .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
                 )
                 .shadow(color: isSelected ? .white.opacity(0.3) : .clear, radius: 6)
+                .onTapGesture(count: 2) {
+                    onSelect()
+                    onParameters()
+                }
             
             // Buttons row: Heart, Parameters, Folder
             HStack(spacing: 3) {

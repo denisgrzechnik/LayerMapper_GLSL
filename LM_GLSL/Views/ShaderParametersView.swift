@@ -47,16 +47,6 @@ struct ShaderParametersView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isFullscreen)
-        .gesture(
-            DragGesture(minimumDistance: 50, coordinateSpace: .local)
-                .onEnded { value in
-                    // Swipe down to dismiss
-                    if value.translation.height > 100 && abs(value.translation.width) < abs(value.translation.height) {
-                        saveChanges()
-                        dismiss()
-                    }
-                }
-        )
         .sheet(isPresented: $showSettings) {
             ShaderSettingsView(shader: shader)
         }
@@ -98,7 +88,6 @@ struct ShaderParametersView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         shaderPreviewPanel
-                            .frame(height: 200)
                         
                         slidersPanel
                             .frame(minHeight: 200)
@@ -221,16 +210,29 @@ struct ShaderParametersView: View {
             .padding(.vertical, 8)
             .background(Color.black.opacity(0.5))
             
-            // Preview - double tap for fullscreen
+            // Preview - landscape shader with 16:9 aspect ratio
             MetalShaderView(
                 shaderCode: shader.fragmentCode,
                 isPlaying: $isPlaying,
                 currentTime: $currentTime,
                 parameters: parametersVM.parameters
             )
+            .aspectRatio(16.0/9.0, contentMode: .fit)
+            .clipped()
+            .contentShape(Rectangle())
             .onTapGesture(count: 2) {
                 isFullscreen = true
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30)
+                    .onEnded { value in
+                        // Swipe down to dismiss
+                        if value.translation.height > 60 && abs(value.translation.width) < abs(value.translation.height) {
+                            saveChanges()
+                            dismiss()
+                        }
+                    }
+            )
         }
         .background(Color.black)
     }

@@ -28,7 +28,7 @@ struct ContentView: View {
 
     
     // View mode: Preview or Grid
-    @State private var viewMode: ViewMode = .preview
+    @State private var viewMode: ViewMode = .grid
     
     // Grid view specific states
     @State private var selectedFolder: ShaderFolder?
@@ -36,6 +36,10 @@ struct ContentView: View {
     
     // Community shaders mode
     @State private var showingCommunityShaders: Bool = false
+    
+    // Portrait bottom panel height (user draggable)
+    @State private var bottomPanelHeight: CGFloat = 170
+    @GestureState private var dragOffset: CGFloat = 0
     
     // Shader Sync Service
     @StateObject private var syncService = ShaderSyncService()
@@ -142,7 +146,11 @@ struct ContentView: View {
                             .frame(width: geometry.size.width * 0.2)
                         }
                     } else {
-                        // Portrait: compact panel on the bottom (20% height)
+                        // Portrait: user-draggable panel on the bottom
+                        let minPanelHeight: CGFloat = 120
+                        let maxPanelHeight: CGFloat = geometry.size.height * 0.7
+                        let currentPanelHeight = min(max(bottomPanelHeight - dragOffset, minPanelHeight), maxPanelHeight)
+                        
                         VStack(spacing: 0) {
                             ShaderGridMainView(
                                 shaders: allShaders,
@@ -154,7 +162,28 @@ struct ContentView: View {
                                 showingCommunityShaders: $showingCommunityShaders
                             )
                             
-                            Divider()
+                            // Drag handle
+                            VStack(spacing: 0) {
+                                Capsule()
+                                    .fill(Color(white: 0.5))
+                                    .frame(width: 40, height: 5)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(white: 0.08))
+                                    .contentShape(Rectangle())
+                                
+                                Divider()
+                            }
+                            .gesture(
+                                DragGesture()
+                                    .updating($dragOffset) { value, state, _ in
+                                        state = value.translation.height
+                                    }
+                                    .onEnded { value in
+                                        let newHeight = bottomPanelHeight - value.translation.height
+                                        bottomPanelHeight = min(max(newHeight, minPanelHeight), maxPanelHeight)
+                                    }
+                            )
                             
                             // Compact horizontal panel: buttons left, folders/categories right
                             PortraitBottomPanel(
@@ -167,7 +196,7 @@ struct ContentView: View {
                                 syncService: syncService,
                                 showingCommunityShaders: $showingCommunityShaders
                             )
-                            .frame(height: min(geometry.size.height * 0.22, 170))
+                            .frame(height: currentPanelHeight)
                         }
                     }
                 }
