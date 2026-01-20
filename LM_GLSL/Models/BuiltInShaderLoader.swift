@@ -19,14 +19,30 @@ class BuiltInShaderLoader {
         self.modelContext = modelContext
     }
     
-    /// Sprawdza czy shadery zostały już załadowane
+    /// Sprawdza czy shadery zostały już załadowane - sprawdza w bazie danych, nie w UserDefaults
     var areShadersLoaded: Bool {
-        UserDefaults.standard.bool(forKey: userDefaultsKey)
+        // Check if ANY built-in shaders exist in database
+        // This prevents duplicates after reinstall when iCloud restores data
+        let descriptor = FetchDescriptor<ShaderEntity>(
+            predicate: #Predicate { $0.isBuiltIn == true }
+        )
+        
+        do {
+            let count = try modelContext.fetchCount(descriptor)
+            return count > 0
+        } catch {
+            // If we can't check, fall back to UserDefaults
+            return UserDefaults.standard.bool(forKey: userDefaultsKey)
+        }
     }
     
     /// Ładuje wszystkie wbudowane shadery jeśli nie zostały jeszcze załadowane
     func loadIfNeeded() {
-        guard !areShadersLoaded else { return }
+        guard !areShadersLoaded else {
+            print("✅ Built-in shaders already exist in database - skipping load")
+            return
+        }
+        print("📦 Loading built-in shaders...")
         loadAllBuiltInShaders()
         UserDefaults.standard.set(true, forKey: userDefaultsKey)
     }

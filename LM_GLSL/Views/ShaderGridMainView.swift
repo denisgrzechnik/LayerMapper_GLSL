@@ -22,6 +22,14 @@ struct ShaderGridMainView: View {
     var selectedFolder: ShaderFolder?
     var selectedCategory: ShaderCategory?
     
+    // Community shaders mode
+    @Binding var showingCommunityShaders: Bool
+    
+    // Community shaders state
+    @State private var communityShaders: [SharedShaderInfo] = []
+    @State private var isLoadingCommunity: Bool = false
+    @State private var communityError: String?
+    
     // Detect orientation
     @State private var isLandscape: Bool = UIDevice.current.orientation.isLandscape
     
@@ -52,63 +60,12 @@ struct ShaderGridMainView: View {
             let isCurrentlyLandscape = geometry.size.width > geometry.size.height
             
             VStack(spacing: 0) {
-                // Shader grid (no header)
-                if filteredShaders.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "square.grid.3x3.slash")
-                            .font(.system(size: 48))
-                            .foregroundColor(Color(white: 0.3))
-                        
-                        Text("No shaders in this selection")
-                            .font(.headline)
-                            .foregroundColor(Color(white: 0.4))
-                        
-                        Text("Select a different folder or category")
-                            .font(.caption)
-                            .foregroundColor(Color(white: 0.3))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if showingCommunityShaders {
+                    // Community shaders view
+                    communityGridContent
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 8) {
-                            ForEach(filteredShaders) { shader in
-                                GridShaderItem(
-                                    shader: shader,
-                                    folders: folders,
-                                    isSelected: selectedShader?.id == shader.id,
-                                    onSelect: {
-                                        selectedShader = shader
-                                        shader.incrementViewCount()
-                                    },
-                                    onToggleFavorite: {
-                                        shader.isFavorite.toggle()
-                                        try? modelContext.save()
-                                    },
-                                    onParameters: {
-                                        selectedShader = shader
-                                        showingParametersView = true
-                                    },
-                                    onAddToFolder: { folder in
-                                        folder.addShader(shader.id)
-                                        try? modelContext.save()
-                                        // Export to App Groups for MApp sync
-                                        SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
-                                        // Sync to iCloud
-                                        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
-                                    },
-                                    onRemoveFromFolder: { folder in
-                                        folder.removeShader(shader.id)
-                                        try? modelContext.save()
-                                        // Export to App Groups for MApp sync
-                                        SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
-                                        // Sync to iCloud
-                                        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
-                                    }
-                                )
-                            }
-                        }
-                        .padding(8)
-                    }
+                    // User's local shaders view
+                    userShadersGridContent
                 }
             }
             .background(Color.black)
@@ -129,6 +86,186 @@ struct ShaderGridMainView: View {
             .onChange(of: isCurrentlyLandscape) { _, newValue in
                 isLandscape = newValue
             }
+            .onChange(of: showingCommunityShaders) { _, newValue in
+                if newValue {
+                    loadCommunityShaders()
+                }
+            }
+        }
+    }
+    
+    // MARK: - User Shaders Grid
+    
+    private var userShadersGridContent: some View {
+        Group {
+            if filteredShaders.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "square.grid.3x3.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(Color(white: 0.3))
+                    
+                    Text("No shaders in this selection")
+                        .font(.headline)
+                        .foregroundColor(Color(white: 0.4))
+                    
+                    Text("Select a different folder or category")
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.3))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(filteredShaders) { shader in
+                            GridShaderItem(
+                                shader: shader,
+                                folders: folders,
+                                isSelected: selectedShader?.id == shader.id,
+                                onSelect: {
+                                    selectedShader = shader
+                                    shader.incrementViewCount()
+                                },
+                                onToggleFavorite: {
+                                    shader.isFavorite.toggle()
+                                    try? modelContext.save()
+                                },
+                                onParameters: {
+                                    selectedShader = shader
+                                    showingParametersView = true
+                                },
+                                onAddToFolder: { folder in
+                                    folder.addShader(shader.id)
+                                    try? modelContext.save()
+                                    // Export to App Groups for MApp sync
+                                    SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
+                                    // Sync to iCloud
+                                    ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+                                    
+                                    // If adding to "Public" folder, publish to CloudKit
+                                    if folder.name.lowercased() == "public" {
+                                        publishShaderToCommunity(shader)
+                                    }
+                                },
+                                onRemoveFromFolder: { folder in
+                                    folder.removeShader(shader.id)
+                                    try? modelContext.save()
+                                    // Export to App Groups for MApp sync
+                                    SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
+                                    // Sync to iCloud
+                                    ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+                                }
+                            )
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Community Shaders Grid
+    
+    private var communityGridContent: some View {
+        Group {
+            if isLoadingCommunity {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Loading community shaders...")
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.5))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = communityError {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 48))
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.5))
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        loadCommunityShaders()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if communityShaders.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 48))
+                        .foregroundColor(Color(white: 0.3))
+                    Text("No community shaders yet")
+                        .font(.headline)
+                        .foregroundColor(Color(white: 0.4))
+                    Text("Be the first to share!")
+                        .font(.caption)
+                        .foregroundColor(Color(white: 0.3))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 8) {
+                        ForEach(communityShaders) { shaderInfo in
+                            CommunityShaderItem(
+                                shaderInfo: shaderInfo,
+                                onDownload: { downloadCommunityShader(shaderInfo) }
+                            )
+                        }
+                    }
+                    .padding(8)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Community Functions
+    
+    private func loadCommunityShaders() {
+        isLoadingCommunity = true
+        communityError = nil
+        
+        Task {
+            do {
+                let shaders = try await CloudKitShaderService.shared.fetchPublicShadersArray()
+                await MainActor.run {
+                    self.communityShaders = shaders
+                    self.isLoadingCommunity = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.communityError = "Failed to load: \(error.localizedDescription)"
+                    self.isLoadingCommunity = false
+                }
+            }
+        }
+    }
+    
+    private func downloadCommunityShader(_ shaderInfo: SharedShaderInfo) {
+        Task {
+            do {
+                let newShader = try await CloudKitShaderService.shared.downloadShaderAsEntity(shaderInfo)
+                await MainActor.run {
+                    modelContext.insert(newShader)
+                    try? modelContext.save()
+                    selectedShader = newShader
+                    showingCommunityShaders = false
+                }
+            } catch {
+                print("Failed to download shader: \(error)")
+            }
+        }
+    }
+    
+    private func publishShaderToCommunity(_ shader: ShaderEntity) {
+        Task {
+            do {
+                try await CloudKitShaderService.shared.publishShaderEntity(shader, authorName: "User")
+                print("Shader published to community: \(shader.name)")
+            } catch {
+                print("Failed to publish shader: \(error)")
+            }
         }
     }
 }
@@ -146,6 +283,7 @@ struct GridShaderItem: View {
     let onRemoveFromFolder: (ShaderFolder) -> Void
     
     @State private var showingFolderMenu: Bool = false
+    @State private var showingPublishSheet: Bool = false
     
     var body: some View {
         VStack(spacing: 4) {
@@ -225,6 +363,25 @@ struct GridShaderItem: View {
         .onTapGesture {
             onSelect()
         }
+        .contextMenu {
+            Button(action: onToggleFavorite) {
+                Label(shader.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                      systemImage: shader.isFavorite ? "heart.slash" : "heart")
+            }
+            
+            Button(action: onParameters) {
+                Label("Parameters", systemImage: "slider.horizontal.3")
+            }
+            
+            Divider()
+            
+            Button(action: { showingPublishSheet = true }) {
+                Label("Share to Community", systemImage: "globe")
+            }
+        }
+        .sheet(isPresented: $showingPublishSheet) {
+            PublishShaderView(shader: shader)
+        }
     }
     
     private var shaderIsInAnyFolder: Bool {
@@ -241,7 +398,92 @@ struct GridShaderItem: View {
         shaders: [],
         selectedShader: .constant(nil),
         showingParametersView: .constant(false),
-        viewMode: .constant(.grid)
+        viewMode: .constant(.grid),
+        showingCommunityShaders: .constant(false)
     )
     .modelContainer(for: [ShaderEntity.self, ShaderFolder.self], inMemory: true)
+}
+
+// MARK: - Community Shader Item
+
+struct CommunityShaderItem: View {
+    let shaderInfo: SharedShaderInfo
+    let onDownload: () -> Void
+    
+    @State private var isDownloading = false
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            // Shader thumbnail (using code preview)
+            ShaderThumbnailView(shaderCode: shaderInfo.fragmentCode)
+                .aspectRatio(1, contentMode: .fit)
+                .clipped()
+                .cornerRadius(6)
+                .overlay(
+                    // Community badge
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "globe")
+                                .font(.system(size: 8))
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Color.purple.opacity(0.8))
+                                .cornerRadius(4)
+                        }
+                        Spacer()
+                    }
+                    .padding(4)
+                )
+            
+            // Info row
+            HStack(spacing: 4) {
+                // Author
+                Text(shaderInfo.authorName)
+                    .font(.system(size: 7))
+                    .foregroundColor(Color(white: 0.5))
+                    .lineLimit(1)
+                
+                Spacer()
+                
+                // Likes
+                HStack(spacing: 2) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 6))
+                    Text("\(shaderInfo.likes)")
+                        .font(.system(size: 7))
+                }
+                .foregroundColor(.red.opacity(0.7))
+            }
+            .padding(.horizontal, 2)
+            
+            // Download button
+            Button(action: {
+                isDownloading = true
+                onDownload()
+            }) {
+                HStack(spacing: 4) {
+                    if isDownloading {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 9))
+                    }
+                    Text("Download")
+                        .font(.system(size: 8))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background(Color.purple.opacity(0.6))
+                .cornerRadius(4)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(isDownloading)
+        }
+        .padding(4)
+        .background(Color(white: 0.1))
+        .cornerRadius(8)
+    }
 }

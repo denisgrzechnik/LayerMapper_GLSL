@@ -34,6 +34,9 @@ struct ContentView: View {
     @State private var selectedFolder: ShaderFolder?
     @State private var selectedGridCategory: ShaderCategory?
     
+    // Community shaders mode
+    @State private var showingCommunityShaders: Bool = false
+    
     // Shader Sync Service
     @StateObject private var syncService = ShaderSyncService()
     
@@ -119,7 +122,8 @@ struct ContentView: View {
                                 showingParametersView: $showingParametersView,
                                 viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
-                                selectedCategory: selectedGridCategory
+                                selectedCategory: selectedGridCategory,
+                                showingCommunityShaders: $showingCommunityShaders
                             )
                             .frame(width: geometry.size.width * 0.8)
                             
@@ -132,7 +136,8 @@ struct ContentView: View {
                                 viewMode: $viewMode,
                                 showingParametersView: $showingParametersView,
                                 selectedShader: selectedShader,
-                                syncService: syncService
+                                syncService: syncService,
+                                showingCommunityShaders: $showingCommunityShaders
                             )
                             .frame(width: geometry.size.width * 0.2)
                         }
@@ -145,7 +150,8 @@ struct ContentView: View {
                                 showingParametersView: $showingParametersView,
                                 viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
-                                selectedCategory: selectedGridCategory
+                                selectedCategory: selectedGridCategory,
+                                showingCommunityShaders: $showingCommunityShaders
                             )
                             
                             Divider()
@@ -158,7 +164,8 @@ struct ContentView: View {
                                 viewMode: $viewMode,
                                 showingParametersView: $showingParametersView,
                                 selectedShader: selectedShader,
-                                syncService: syncService
+                                syncService: syncService,
+                                showingCommunityShaders: $showingCommunityShaders
                             )
                             .frame(height: min(geometry.size.height * 0.22, 170))
                         }

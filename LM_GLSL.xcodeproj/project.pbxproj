@@ -43,6 +43,9 @@
 		58C5621B2F12B4E90094CB27 /* PortraitBottomPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */; };
 		58C9CAE82F1FAAAB0074BF12 /* SharedFolderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */; };
 		58C9CE9B2F1FDD0F0074BF12 /* ICloudFolderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */; };
+		58CK00012F200001000CK001 /* CloudKitShaderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00022F200001000CK001 /* CloudKitShaderService.swift */; };
+		58CK00032F200001000CK002 /* SharedShaderGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00042F200001000CK002 /* SharedShaderGalleryView.swift */; };
+		58CK00052F200001000CK003 /* PublishShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00062F200001000CK003 /* PublishShaderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -85,6 +88,9 @@
 		58C5621C2F12E70A0094CB27 /* LM_GLSL.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LM_GLSL.entitlements; sourceTree = "<group>"; };
 		58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderSync.swift; sourceTree = "<group>"; };
 		58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudFolderSync.swift; sourceTree = "<group>"; };
+		58CK00022F200001000CK001 /* CloudKitShaderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitShaderService.swift; sourceTree = "<group>"; };
+		58CK00042F200001000CK002 /* SharedShaderGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedShaderGalleryView.swift; sourceTree = "<group>"; };
+		58CK00062F200001000CK003 /* PublishShaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishShaderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,6 +145,8 @@
 				58C562142F129D9B0094CB27 /* ShaderGridMainView.swift */,
 				58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */,
 				58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */,
+				58CK00042F200001000CK002 /* SharedShaderGalleryView.swift */,
+				58CK00062F200001000CK003 /* PublishShaderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -211,6 +219,7 @@
 				58C562082F0F38940094CB27 /* ShaderSyncService.swift */,
 				58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */,
 				58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */,
+				58CK00022F200001000CK001 /* CloudKitShaderService.swift */,
 			);
 			path = Sync;
 			sourceTree = "<group>";
@@ -319,6 +328,9 @@
 				0A000021291F0001000A0017 /* Color+Hex.swift in Sources */,
 				58C9CE9B2F1FDD0F0074BF12 /* ICloudFolderSync.swift in Sources */,
 				58C9CAE82F1FAAAB0074BF12 /* SharedFolderSync.swift in Sources */,
+				58CK00012F200001000CK001 /* CloudKitShaderService.swift in Sources */,
+				58CK00032F200001000CK002 /* SharedShaderGalleryView.swift in Sources */,
+				58CK00052F200001000CK003 /* PublishShaderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

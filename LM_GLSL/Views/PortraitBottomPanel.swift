@@ -21,6 +21,9 @@ struct PortraitBottomPanel: View {
     
     @ObservedObject var syncService: ShaderSyncService
     
+    // Community shaders mode
+    @Binding var showingCommunityShaders: Bool
+    
     @State private var selectedTab: PanelTab = .folder
     @State private var showingNewFolderSheet: Bool = false
     @State private var newFolderName: String = ""
@@ -246,9 +249,34 @@ struct PortraitBottomPanel: View {
                 }
             }
             
-            // Row 3: Empty slots (for future use)
+            // Row 3: Community toggle, Empty slot
             HStack(spacing: 6) {
-                emptySlot
+                // Community toggle button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingCommunityShaders.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 12))
+                        if showingCommunityShaders {
+                            Text("ON")
+                                .font(.system(size: 8, weight: .bold))
+                        }
+                    }
+                    .foregroundColor(showingCommunityShaders ? .white : .purple)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(showingCommunityShaders ? Color.purple.opacity(0.4) : Color.purple.opacity(0.15))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(showingCommunityShaders ? Color.purple : Color.purple.opacity(0.4), lineWidth: showingCommunityShaders ? 1.5 : 0.5)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+                
                 emptySlot
             }
         }
@@ -339,7 +367,8 @@ struct PortraitBottomPanel: View {
         viewMode: .constant(.grid),
         showingParametersView: .constant(false),
         selectedShader: nil,
-        syncService: ShaderSyncService()
+        syncService: ShaderSyncService(),
+        showingCommunityShaders: .constant(false)
     )
     .frame(height: 140)
     .modelContainer(for: [ShaderFolder.self], inMemory: true)

@@ -24,9 +24,13 @@ struct FolderCategoryPanel: View {
     // Sync service for broadcast button
     @ObservedObject var syncService: ShaderSyncService
     
+    // Community shaders mode
+    @Binding var showingCommunityShaders: Bool
+    
     @State private var selectedTab: PanelTab = .folder
     @State private var showingNewFolderSheet: Bool = false
     @State private var newFolderName: String = ""
+    @State private var searchText: String = ""
     
     enum PanelTab: String, CaseIterable {
         case folder = "Folder"
@@ -238,8 +242,38 @@ struct FolderCategoryPanel: View {
                     }
                 }
                 
+                // Community toggle button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingCommunityShaders.toggle()
+                    }
+                }) {
+                    ZStack {
+                        Rectangle()
+                            .fill(showingCommunityShaders ? Color.purple.opacity(0.4) : Color.purple.opacity(0.2))
+                            .aspectRatio(1, contentMode: .fit)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(showingCommunityShaders ? Color.purple : Color.purple.opacity(0.6), lineWidth: showingCommunityShaders ? 2 : 1)
+                            )
+                            .cornerRadius(6)
+                        
+                        VStack(spacing: 2) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 14))
+                                .foregroundColor(showingCommunityShaders ? .white : .purple)
+                            
+                            if showingCommunityShaders {
+                                Text("ON")
+                                    .font(.system(size: 6, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                    }
+                }
+                
                 // Empty slots
-                ForEach(0..<3, id: \.self) { _ in
+                ForEach(0..<2, id: \.self) { _ in
                     emptySlotButton
                 }
             }
@@ -304,6 +338,28 @@ struct FolderCategoryPanel: View {
     
     private var categoriesList: some View {
         VStack(spacing: 4) {
+            // Search bar at top
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(Color(white: 0.4))
+                    .font(.system(size: 12))
+                TextField("Search shaders...", text: $searchText)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Color(white: 0.4))
+                            .font(.system(size: 10))
+                    }
+                }
+            }
+            .padding(8)
+            .background(Color(white: 0.12))
+            .cornerRadius(8)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
+            
             ForEach(ShaderCategory.allCases) { category in
                 CategoryRowItem(
                     category: category,
@@ -482,7 +538,8 @@ struct CategoryRowItem: View {
         viewMode: .constant(.grid),
         showingParametersView: .constant(false),
         selectedShader: nil,
-        syncService: ShaderSyncService()
+        syncService: ShaderSyncService(),
+        showingCommunityShaders: .constant(false)
     )
     .modelContainer(for: [ShaderFolder.self], inMemory: true)
 }

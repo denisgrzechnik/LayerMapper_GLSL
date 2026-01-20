@@ -77,6 +77,7 @@ struct LM_GLSLApp: App {
             ContentView()
                 .onAppear {
                     loadBuiltInShadersIfNeeded()
+                    createPublicFolderIfNeeded()
                     setupICloudKVSSync()
                     logDatabaseStatus()
                 }
@@ -100,6 +101,34 @@ struct LM_GLSLApp: App {
         let context = sharedModelContainer.mainContext
         let loader = BuiltInShaderLoader(modelContext: context)
         loader.loadIfNeeded()
+    }
+    
+    /// Create "Public" folder if it doesn't exist - for sharing to community
+    @MainActor
+    private func createPublicFolderIfNeeded() {
+        let context = sharedModelContainer.mainContext
+        
+        do {
+            let descriptor = FetchDescriptor<ShaderFolder>(
+                predicate: #Predicate<ShaderFolder> { $0.name == "Public" }
+            )
+            let existing = try context.fetch(descriptor)
+            
+            if existing.isEmpty {
+                // Create Public folder with special icon and color
+                let publicFolder = ShaderFolder(
+                    name: "Public",
+                    colorHex: "#9B59B6",  // Purple
+                    iconName: "globe",
+                    order: 999  // Put at end
+                )
+                context.insert(publicFolder)
+                try context.save()
+                print("🌐 Created 'Public' folder for community sharing")
+            }
+        } catch {
+            print("⚠️ Failed to create Public folder: \(error)")
+        }
     }
     
     @MainActor
