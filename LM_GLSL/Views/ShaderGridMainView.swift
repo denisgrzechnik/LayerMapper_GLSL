@@ -153,6 +153,12 @@ struct ShaderGridMainView: View {
                                     SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
                                     // Sync to iCloud
                                     ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+                                },
+                                onDelete: {
+                                    deleteShader(shader)
+                                },
+                                onDuplicate: {
+                                    duplicateShader(shader)
                                 }
                             )
                         }
@@ -268,6 +274,83 @@ struct ShaderGridMainView: View {
             }
         }
     }
+    
+    // MARK: - Delete & Duplicate
+    
+    private func deleteShader(_ shader: ShaderEntity) {
+        // Don't delete built-in shaders
+        guard !shader.isBuiltIn else {
+            print("Cannot delete built-in shader")
+            return
+        }
+        
+        // Remove from all folders first
+        for folder in folders {
+            if folder.containsShader(shader.id) {
+                folder.removeShader(shader.id)
+            }
+        }
+        
+        // Clear selection if this shader was selected
+        if selectedShader?.id == shader.id {
+            selectedShader = nil
+        }
+        
+        // Delete the shader
+        modelContext.delete(shader)
+        try? modelContext.save()
+        
+        // Sync folders
+        SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
+        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+        
+        print("🗑️ Deleted shader: \(shader.name)")
+    }
+    
+    private func duplicateShader(_ shader: ShaderEntity) {
+        // Create a copy of the shader
+        let duplicatedShader = ShaderEntity(
+            name: shader.name + " (Copy)",
+            fragmentCode: shader.fragmentCode,
+            category: shader.category,
+            isBuiltIn: false  // Duplicated shaders are never built-in
+        )
+        
+        // Copy other properties
+        duplicatedShader.shaderDescription = shader.shaderDescription
+        duplicatedShader.isFavorite = false
+        
+        // Copy parameters if any
+        if let params = shader.parameters {
+            var newParams: [ShaderParameterEntity] = []
+            for param in params {
+                let newParam = ShaderParameterEntity(
+                    name: param.name,
+                    displayName: param.displayName,
+                    parameterType: param.parameterType,
+                    floatValue: param.floatValue,
+                    minValue: param.minValue,
+                    maxValue: param.maxValue,
+                    defaultValue: param.defaultValue,
+                    step: param.step
+                )
+                newParam.colorValueHex = param.colorValueHex
+                newParam.vectorValuesJSON = param.vectorValuesJSON
+                newParam.boolValue = param.boolValue
+                newParams.append(newParam)
+            }
+            duplicatedShader.parameters = newParams
+        }
+        
+        // Insert and save
+        modelContext.insert(duplicatedShader)
+        try? modelContext.save()
+        
+        // Select the new shader
+        selectedShader = duplicatedShader
+        
+        print("📋 Duplicated shader: \(shader.name) → \(duplicatedShader.name)")
+    }
 }
 
 // MARK: - Grid Shader Item
@@ -281,9 +364,12 @@ struct GridShaderItem: View {
     let onParameters: () -> Void
     let onAddToFolder: (ShaderFolder) -> Void
     let onRemoveFromFolder: (ShaderFolder) -> Void
+    let onDelete: () -> Void
+    let onDuplicate: () -> Void
     
     @State private var showingFolderMenu: Bool = false
     @State private var showingPublishSheet: Bool = false
+    @State private var showingDeleteConfirmation: Bool = false
     
     var body: some View {
         VStack(spacing: 4) {
@@ -375,9 +461,28 @@ struct GridShaderItem: View {
             
             Divider()
             
+            Button(action: onDuplicate) {
+                Label("Duplicate", systemImage: "doc.on.doc")
+            }
+            
             Button(action: { showingPublishSheet = true }) {
                 Label("Share to Community", systemImage: "globe")
             }
+            
+            Divider()
+            
+            Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
+                Label("Delete", systemImage: "trash")
+            }
+            .disabled(shader.isBuiltIn)
+        }
+        .alert("Delete Shader?", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text("Are you sure you want to delete \"\(shader.name)\"? This action cannot be undone.")
         }
         .sheet(isPresented: $showingPublishSheet) {
             PublishShaderView(shader: shader)

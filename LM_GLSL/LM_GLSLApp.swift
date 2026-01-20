@@ -76,6 +76,7 @@ struct LM_GLSLApp: App {
         WindowGroup {
             ContentView()
                 .onAppear {
+                    removeDuplicateShaders()  // Clean up duplicates first
                     loadBuiltInShadersIfNeeded()
                     createPublicFolderIfNeeded()
                     setupICloudKVSSync()
@@ -95,6 +96,57 @@ struct LM_GLSLApp: App {
     }
     
     // MARK: - Initial Setup
+    
+    /// Remove duplicate shaders (keep only one of each name for built-in shaders)
+    @MainActor
+    private func removeDuplicateShaders() {
+        let context = sharedModelContainer.mainContext
+        
+        do {
+            let descriptor = FetchDescriptor<ShaderEntity>(sortBy: [SortDescriptor(\.dateCreated)])
+            let allShaders = try context.fetch(descriptor)
+            
+            // Group by name
+            var seenNames: [String: ShaderEntity] = [:]
+            var duplicatesToDelete: [ShaderEntity] = []
+            
+            for shader in allShaders {
+                if let existing = seenNames[shader.name] {
+                    // This is a duplicate
+                    // Keep the one that's NOT built-in if possible (user might have modified it)
+                    // Or keep the newer one for non-built-in shaders
+                    if shader.isBuiltIn && !existing.isBuiltIn {
+                        // Keep user's custom version, delete built-in duplicate
+                        duplicatesToDelete.append(shader)
+                    } else if !shader.isBuiltIn && existing.isBuiltIn {
+                        // Keep user's custom version, delete built-in
+                        duplicatesToDelete.append(existing)
+                        seenNames[shader.name] = shader
+                    } else {
+                        // Both same type - keep the first one (oldest), delete newer duplicate
+                        duplicatesToDelete.append(shader)
+                    }
+                } else {
+                    seenNames[shader.name] = shader
+                }
+            }
+            
+            if !duplicatesToDelete.isEmpty {
+                print("🧹 Removing \(duplicatesToDelete.count) duplicate shaders...")
+                for shader in duplicatesToDelete {
+                    print("   - Deleting duplicate: \(shader.name)")
+                    context.delete(shader)
+                }
+                try context.save()
+                print("✅ Duplicates removed successfully!")
+            } else {
+                print("✨ No duplicate shaders found")
+            }
+            
+        } catch {
+            print("⚠️ Error removing duplicates: \(error)")
+        }
+    }
     
     @MainActor
     private func loadBuiltInShadersIfNeeded() {
