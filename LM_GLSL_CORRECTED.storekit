@@ -99,37 +99,6 @@
           "referenceName" : "LM_GLSL Monthly",
           "subscriptionGroupID" : "GLSL_SUBGROUP001",
           "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "66.00",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "GLSL_SUB_YEARLY",
-          "introductoryOffer" : {
-            "displayPrice" : "0.00",
-            "internalID" : "GLSL_INTRO002",
-            "numberOfPeriods" : 1,
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1M"
-          },
-          "localizations" : [
-            {
-              "description" : "Full access to all LM_GLSL features. First 30 days free, then $66/year. Save 50%!",
-              "displayName" : "Yearly Subscription",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "com.layermapper.glsl.subscription.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "LM_GLSL Yearly",
-          "subscriptionGroupID" : "GLSL_SUBGROUP001",
-          "type" : "RecurringSubscription"
         }
       ]
     }

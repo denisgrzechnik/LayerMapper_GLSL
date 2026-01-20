@@ -27,11 +27,13 @@ enum ShaderSyncMessageType: String, Codable {
     case shaderBroadcast       // Full shader state broadcast
     case parameterUpdate       // Real-time parameter changes only
     case shaderThumbnail       // Optional thumbnail image
+    case folderSync            // Folder list and assignments sync
     
     // Receiver → Source (bi-directional control)
     case requestShader         // Request current shader from source
     case remoteParameterChange // Remote control of parameters
     case assignToLayer         // Assign this shader to specific layer
+    case requestFolders        // Request folder list from source
     
     // Connection management
     case heartbeat
@@ -327,4 +329,44 @@ extension ShaderSyncProtocol {
     
     /// Heartbeat interval (seconds)
     static let heartbeatInterval: TimeInterval = 2.0
+}
+
+// MARK: - Folder Sync Models
+
+/// Folder information for sync (matches ShaderFolder in GLSL app)
+struct SyncShaderFolder: Codable, Identifiable {
+    let id: UUID
+    let name: String
+    let colorHex: String
+    let iconName: String
+    let order: Int
+    
+    init(id: UUID = UUID(), name: String, colorHex: String = "#808080", iconName: String = "folder.fill", order: Int = 0) {
+        self.id = id
+        self.name = name
+        self.colorHex = colorHex
+        self.iconName = iconName
+        self.order = order
+    }
+}
+
+/// Folder assignment for sync - maps shader names to folder names
+struct SyncFolderAssignment: Codable {
+    let shaderName: String
+    let folderNames: [String]
+}
+
+/// Full folder sync payload
+struct FolderSyncPayload: Codable {
+    let deviceName: String
+    let timestamp: Date
+    let folders: [SyncShaderFolder]
+    let assignments: [SyncFolderAssignment]  // shaderName -> [folderNames]
+    
+    init(deviceName: String, folders: [SyncShaderFolder], assignments: [SyncFolderAssignment]) {
+        self.deviceName = deviceName
+        self.timestamp = Date()
+        self.folders = folders
+        self.assignments = assignments
+    }
 }

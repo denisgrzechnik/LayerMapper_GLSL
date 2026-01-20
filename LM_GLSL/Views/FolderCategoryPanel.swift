@@ -12,6 +12,7 @@ import SwiftData
 struct FolderCategoryPanel: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ShaderFolder.order) private var folders: [ShaderFolder]
+    @Query(sort: \ShaderEntity.name) private var allShaders: [ShaderEntity]
     
     @Binding var selectedFolder: ShaderFolder?
     @Binding var selectedCategory: ShaderCategory?
@@ -370,6 +371,12 @@ struct FolderCategoryPanel: View {
         modelContext.insert(folder)
         try? modelContext.save()
         
+        // Export to App Groups for MApp sync
+        SharedFolderSyncService.shared.exportFolders(folders: folders + [folder], shaders: allShaders)
+        
+        // Sync to iCloud for cross-device sync
+        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+        
         newFolderName = ""
         showingNewFolderSheet = false
     }
@@ -380,6 +387,13 @@ struct FolderCategoryPanel: View {
         }
         modelContext.delete(folder)
         try? modelContext.save()
+        
+        // Export to App Groups for MApp sync
+        let remainingFolders = folders.filter { $0.id != folder.id }
+        SharedFolderSyncService.shared.exportFolders(folders: remainingFolders, shaders: allShaders)
+        
+        // Sync to iCloud for cross-device sync
+        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
     }
 }
 

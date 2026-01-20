@@ -323,6 +323,9 @@ struct PortraitBottomPanel: View {
         modelContext.insert(folder)
         try? modelContext.save()
         
+        // Sync to iCloud for cross-device sync
+        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
+        
         newFolderName = ""
         showingNewFolderSheet = false
     }

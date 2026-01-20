@@ -41,6 +41,8 @@
 		58C562172F129DD80094CB27 /* FolderCategoryPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562162F129DD80094CB27 /* FolderCategoryPanel.swift */; };
 		58C562192F129E040094CB27 /* ViewMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C562182F129E040094CB27 /* ViewMode.swift */; };
 		58C5621B2F12B4E90094CB27 /* PortraitBottomPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */; };
+		58C9CAE82F1FAAAB0074BF12 /* SharedFolderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */; };
+		58C9CE9B2F1FDD0F0074BF12 /* ICloudFolderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +83,8 @@
 		58C562182F129E040094CB27 /* ViewMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewMode.swift; sourceTree = "<group>"; };
 		58C5621A2F12B4E90094CB27 /* PortraitBottomPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortraitBottomPanel.swift; sourceTree = "<group>"; };
 		58C5621C2F12E70A0094CB27 /* LM_GLSL.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LM_GLSL.entitlements; sourceTree = "<group>"; };
+		58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderSync.swift; sourceTree = "<group>"; };
+		58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudFolderSync.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -205,6 +209,8 @@
 			children = (
 				58C562072F0F38940094CB27 /* ShaderSyncModels.swift */,
 				58C562082F0F38940094CB27 /* ShaderSyncService.swift */,
+				58C9CAE72F1FAAAB0074BF12 /* SharedFolderSync.swift */,
+				58C9CE9A2F1FDD0F0074BF12 /* ICloudFolderSync.swift */,
 			);
 			path = Sync;
 			sourceTree = "<group>";
@@ -311,6 +317,8 @@
 				0A00001D291F0001000A0015 /* ShaderCodes_Part4.swift in Sources */,
 				0A00001F291F0001000A0016 /* ShaderCodes_Part5.swift in Sources */,
 				0A000021291F0001000A0017 /* Color+Hex.swift in Sources */,
+				58C9CE9B2F1FDD0F0074BF12 /* ICloudFolderSync.swift in Sources */,
+				58C9CAE82F1FAAAB0074BF12 /* SharedFolderSync.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -443,17 +451,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = LM_GLSL/LM_GLSL.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = U9759WPUN5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LM_GLSL/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mobile.layermapper.glsl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -471,17 +481,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = LM_GLSL/LM_GLSL.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = U9759WPUN5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LM_GLSL/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mobile.layermapper.glsl;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

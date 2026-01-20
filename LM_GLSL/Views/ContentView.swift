@@ -11,6 +11,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ShaderEntity.name) private var allShaders: [ShaderEntity]
+    @Query(sort: \ShaderFolder.order) private var allFolders: [ShaderFolder]
     
     // Store Manager for IAP
     @StateObject private var store = StoreManager.shared
@@ -216,8 +217,22 @@ struct ContentView: View {
             if let shader = selectedShader {
                 loadParametersForShader(shader)
             }
+            // Export folders to App Groups for MApp sync
+            exportFoldersToAppGroups()
             // Note: Sync service is NOT started automatically
             // User must tap broadcast button to start
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .shaderSyncFoldersRequested)) { _ in
+            // MApp requested folders - send current folder list via MultipeerConnectivity
+            broadcastFolders()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .sharedFoldersDidChange)) { _ in
+            // MApp modified folders in App Groups - import changes
+            importFoldersFromAppGroups()
+        }
+        .onChange(of: allFolders) { _, _ in
+            // When folders change, export to App Groups
+            exportFoldersToAppGroups()
         }
         .onChange(of: selectedShader) { oldValue, newValue in
             // Load parameters for new shader (important for portrait mode)
@@ -318,6 +333,53 @@ struct ContentView: View {
             fragmentCode: shader.fragmentCode,
             vertexCode: shader.vertexCode,
             parameters: syncParams
+        )
+    }
+    
+    /// Broadcast folders and shader-folder assignments to connected MApp receivers
+    private func broadcastFolders() {
+        // Convert ShaderFolder to SyncShaderFolder
+        let syncFolders = allFolders.map { folder in
+            SyncShaderFolder(
+                id: folder.id,
+                name: folder.name,
+                colorHex: folder.colorHex,
+                iconName: folder.iconName,
+                order: folder.order
+            )
+        }
+        
+        // Build shader-folder assignments (shaderName -> [folderNames])
+        var assignments: [SyncFolderAssignment] = []
+        for shader in allShaders {
+            // Find which folders contain this shader
+            let containingFolders = allFolders.filter { $0.containsShader(shader.id) }
+            if !containingFolders.isEmpty {
+                let folderNames = containingFolders.map { $0.name }
+                assignments.append(SyncFolderAssignment(
+                    shaderName: shader.name,
+                    folderNames: folderNames
+                ))
+            }
+        }
+        
+        // Broadcast to all connected receivers
+        syncService.broadcastFolders(folders: syncFolders, assignments: assignments)
+    }
+    
+    // MARK: - App Groups Sync
+    
+    /// Export folders to App Groups shared storage (for MApp to read)
+    private func exportFoldersToAppGroups() {
+        SharedFolderSyncService.shared.exportFolders(folders: allFolders, shaders: allShaders)
+    }
+    
+    /// Import folders from App Groups if MApp made changes
+    private func importFoldersFromAppGroups() {
+        SharedFolderSyncService.shared.importFolders(
+            modelContext: modelContext,
+            existingFolders: allFolders,
+            shaders: allShaders
         )
     }
 }

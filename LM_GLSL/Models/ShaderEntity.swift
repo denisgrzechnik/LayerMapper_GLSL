@@ -12,33 +12,50 @@ import SwiftData
 @Model
 final class ShaderEntity {
     // MARK: - Identyfikacja
-    var id: UUID  // CloudKit doesn't support unique constraints
-    var name: String
-    var shaderDescription: String
+    var id: UUID = UUID()  // CloudKit requires default values
+    var name: String = ""
+    var shaderDescription: String = ""
     
     // MARK: - Kod shadera
-    var fragmentCode: String
+    var fragmentCode: String = ""
     var vertexCode: String?
     
     // MARK: - Kategoryzacja
-    var categoryRawValue: String
-    var tags: [String]
+    var categoryRawValue: String = "Basic"
+    var tagsJSON: String = "[]"  // CloudKit: stored as JSON String
+    
+    // Computed property for easy access
+    var tags: [String] {
+        get {
+            guard let data = tagsJSON.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([String].self, from: data) else {
+                return []
+            }
+            return arr
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                tagsJSON = json
+            }
+        }
+    }
     
     // MARK: - Metadane
-    var author: String
-    var version: String
-    var dateCreated: Date
-    var dateModified: Date
+    var author: String = "Built-in"
+    var version: String = "1.0"
+    var dateCreated: Date = Date()
+    var dateModified: Date = Date()
     
     // MARK: - Flagi
-    var isBuiltIn: Bool
-    var isFavorite: Bool
-    var isPublic: Bool
+    var isBuiltIn: Bool = false
+    var isFavorite: Bool = false
+    var isPublic: Bool = false
     
     // MARK: - Statystyki
-    var viewCount: Int
-    var rating: Double
-    var ratingCount: Int
+    var viewCount: Int = 0
+    var rating: Double = 0.0
+    var ratingCount: Int = 0
     
     // MARK: - Parametry (jako JSON)
     var parametersJSON: Data?
@@ -48,7 +65,7 @@ final class ShaderEntity {
     
     // MARK: - Thumbnail
     var thumbnailData: Data?
-    var thumbnailColorHex: String
+    var thumbnailColorHex: String = "#808080"
     
     // MARK: - Relacje
     @Relationship(deleteRule: .cascade, inverse: \ShaderParameterEntity.shader)
@@ -83,7 +100,13 @@ final class ShaderEntity {
         self.fragmentCode = fragmentCode
         self.vertexCode = vertexCode
         self.categoryRawValue = category.rawValue
-        self.tags = tags
+        // Encode tags as JSON
+        if let data = try? JSONEncoder().encode(tags),
+           let json = String(data: data, encoding: .utf8) {
+            self.tagsJSON = json
+        } else {
+            self.tagsJSON = "[]"
+        }
         self.author = author
         self.version = version
         self.dateCreated = Date()
@@ -120,26 +143,46 @@ final class ShaderEntity {
 /// Model parametru shadera w SwiftData
 @Model
 final class ShaderParameterEntity {
-    var id: UUID  // CloudKit doesn't support unique constraints
-    var name: String
-    var displayName: String
-    var parameterType: String // "float", "color", "int", "bool", "vec2", "vec3", "vec4"
+    var id: UUID = UUID()  // CloudKit requires default values
+    var name: String = ""
+    var displayName: String = ""
+    var parameterType: String = "float" // "float", "color", "int", "bool", "vec2", "vec3", "vec4"
     
     // Wartości dla float/int
-    var floatValue: Float
-    var minValue: Float
-    var maxValue: Float
-    var defaultValue: Float
-    var step: Float
+    var floatValue: Float = 0.5
+    var minValue: Float = 0.0
+    var maxValue: Float = 1.0
+    var defaultValue: Float = 0.5
+    var step: Float = 0.01
     
     // Wartości dla color (jako hex)
     var colorValueHex: String?
     
-    // Wartości dla vector
-    var vectorValues: [Float]?
+    // Wartości dla vector - stored as JSON String for CloudKit
+    var vectorValuesJSON: String?
+    
+    var vectorValues: [Float]? {
+        get {
+            guard let json = vectorValuesJSON,
+                  let data = json.data(using: .utf8),
+                  let arr = try? JSONDecoder().decode([Float].self, from: data) else {
+                return nil
+            }
+            return arr
+        }
+        set {
+            if let newValue = newValue,
+               let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                vectorValuesJSON = json
+            } else {
+                vectorValuesJSON = nil
+            }
+        }
+    }
     
     // Wartość bool
-    var boolValue: Bool
+    var boolValue: Bool = false
     
     // Relacja do shadera
     var shader: ShaderEntity?
@@ -172,10 +215,10 @@ final class ShaderParameterEntity {
 
 @Model
 final class TagEntity {
-    var id: UUID  // CloudKit doesn't support unique constraints
-    var name: String
-    var colorHex: String
-    var usageCount: Int
+    var id: UUID = UUID()  // CloudKit requires default values
+    var name: String = ""
+    var colorHex: String = "#808080"
+    var usageCount: Int = 0
     
     init(id: UUID = UUID(), name: String, colorHex: String = "#808080") {
         self.id = id

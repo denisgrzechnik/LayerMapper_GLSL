@@ -371,6 +371,8 @@ struct NewShaderView: View {
             for folder in allFolders where selectedFolders.contains(folder.id) {
                 folder.addShader(shader.id)
             }
+            // Sync folders to iCloud after adding shader
+            ICloudFolderSync.shared.exportToiCloud(context: modelContext)
         }
         
         onCreate(shader)

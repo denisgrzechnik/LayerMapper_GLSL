@@ -57,12 +57,28 @@ class ShaderSyncService: NSObject, ObservableObject {
     private var currentTime: Double = 0
     private var currentBeat: Double?
     
+    /// Unique source ID (persisted)
+    private let sourceId: String
+    
     // MARK: - Initialization
     
     override init() {
-        // Use device name as source identifier
-        self.deviceName = UIDevice.current.name
-        self.myPeerID = MCPeerID(displayName: "\(deviceName)-GLSL")
+        // Load or create unique source ID
+        if let savedId = UserDefaults.standard.string(forKey: "ShaderSyncSourceId") {
+            self.sourceId = savedId
+        } else {
+            // Generate short unique ID (first 6 chars of UUID)
+            let newId = String(UUID().uuidString.prefix(6))
+            UserDefaults.standard.set(newId, forKey: "ShaderSyncSourceId")
+            self.sourceId = newId
+        }
+        
+        // Use device name + unique ID as source identifier
+        // This ensures uniqueness when multiple devices have the same name (e.g., two "iPad" devices)
+        let rawDeviceName = UIDevice.current.name
+        self.deviceName = "\(rawDeviceName)[\(sourceId)]"
+        // Include sourceId in displayName to ensure uniqueness when multiple devices have the same name
+        self.myPeerID = MCPeerID(displayName: "\(rawDeviceName)[\(sourceId)]-GLSL")
         
         super.init()
         
@@ -174,6 +190,18 @@ class ShaderSyncService: NSObject, ObservableObject {
         }
         
         print("📡 ShaderSync: Broadcast shader '\(shaderName)' to \(connectedReceivers.count) receivers")
+    }
+    
+    /// Broadcast folder list and assignments to all receivers
+    func broadcastFolders(folders: [SyncShaderFolder], assignments: [SyncFolderAssignment]) {
+        let payload = FolderSyncPayload(
+            deviceName: deviceName,
+            folders: folders,
+            assignments: assignments
+        )
+        
+        sendMessage(type: .folderSync, payload: payload)
+        print("📁 ShaderSync: Broadcast \(folders.count) folders to \(connectedReceivers.count) receivers")
     }
     
     /// Update parameter values (called frequently during animation)
@@ -328,6 +356,14 @@ class ShaderSyncService: NSObject, ObservableObject {
                 }
             }
             
+        case .requestFolders:
+            // Receiver requested folder list - notify app to send folders
+            NotificationCenter.default.post(
+                name: .shaderSyncFoldersRequested,
+                object: nil,
+                userInfo: ["peer": peer.displayName]
+            )
+            
         case .remoteParameterChange:
             if let change = message.decode(RemoteParameterChange.self) {
                 // Notify app that a remote parameter change was requested
@@ -440,4 +476,5 @@ extension ShaderSyncService: MCNearbyServiceAdvertiserDelegate {
 
 extension Notification.Name {
     static let shaderSyncRemoteParameterChange = Notification.Name("shaderSyncRemoteParameterChange")
+    static let shaderSyncFoldersRequested = Notification.Name("shaderSyncFoldersRequested")
 }

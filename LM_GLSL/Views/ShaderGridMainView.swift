@@ -91,10 +91,18 @@ struct ShaderGridMainView: View {
                                     onAddToFolder: { folder in
                                         folder.addShader(shader.id)
                                         try? modelContext.save()
+                                        // Export to App Groups for MApp sync
+                                        SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
+                                        // Sync to iCloud
+                                        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
                                     },
                                     onRemoveFromFolder: { folder in
                                         folder.removeShader(shader.id)
                                         try? modelContext.save()
+                                        // Export to App Groups for MApp sync
+                                        SharedFolderSyncService.shared.exportFolders(folders: folders, shaders: shaders)
+                                        // Sync to iCloud
+                                        ICloudFolderSync.shared.exportToiCloud(context: modelContext)
                                     }
                                 )
                             }

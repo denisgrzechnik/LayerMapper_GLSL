@@ -11,16 +11,33 @@ import SwiftData
 /// Model foldera shaderów w SwiftData
 @Model
 final class ShaderFolder {
-    var id: UUID  // CloudKit doesn't support unique constraints
-    var name: String
-    var colorHex: String
-    var iconName: String
-    var dateCreated: Date
-    var dateModified: Date
-    var order: Int
+    var id: UUID = UUID()  // CloudKit requires default values
+    var name: String = ""
+    var colorHex: String = "#808080"
+    var iconName: String = "folder.fill"
+    var dateCreated: Date = Date()
+    var dateModified: Date = Date()
+    var order: Int = 0
     
-    // Lista ID shaderów w folderze
-    var shaderIds: [UUID]
+    // Lista ID shaderów w folderze - przechowywana jako JSON String dla CloudKit
+    var shaderIdsJSON: String = "[]"
+    
+    // Computed property dla łatwego dostępu
+    var shaderIds: [UUID] {
+        get {
+            guard let data = shaderIdsJSON.data(using: .utf8),
+                  let ids = try? JSONDecoder().decode([UUID].self, from: data) else {
+                return []
+            }
+            return ids
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let json = String(data: data, encoding: .utf8) {
+                shaderIdsJSON = json
+            }
+        }
+    }
     
     init(
         id: UUID = UUID(),
@@ -36,18 +53,22 @@ final class ShaderFolder {
         self.dateCreated = Date()
         self.dateModified = Date()
         self.order = order
-        self.shaderIds = []
+        self.shaderIdsJSON = "[]"
     }
     
     func addShader(_ shaderId: UUID) {
-        if !shaderIds.contains(shaderId) {
-            shaderIds.append(shaderId)
+        var ids = shaderIds
+        if !ids.contains(shaderId) {
+            ids.append(shaderId)
+            shaderIds = ids
             dateModified = Date()
         }
     }
     
     func removeShader(_ shaderId: UUID) {
-        shaderIds.removeAll { $0 == shaderId }
+        var ids = shaderIds
+        ids.removeAll { $0 == shaderId }
+        shaderIds = ids
         dateModified = Date()
     }
     
