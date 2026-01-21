@@ -12,6 +12,11 @@ import Foundation
 enum AIProvider: String, CaseIterable, Identifiable {
     case openAI = "OpenAI"
     case groq = "Groq"
+    case gemini = "Google Gemini"
+    case deepseek = "DeepSeek"
+    case mistral = "Mistral AI"
+    case together = "Together AI"
+    case fireworks = "Fireworks AI"
     case ollama = "Ollama (Local)"
     
     var id: String { rawValue }
@@ -20,6 +25,11 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .openAI: return "gpt-4o-mini"
         case .groq: return "llama-3.3-70b-versatile"
+        case .gemini: return "gemini-2.0-flash-lite"
+        case .deepseek: return "deepseek-chat"
+        case .mistral: return "codestral-latest"
+        case .together: return "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+        case .fireworks: return "accounts/fireworks/models/llama-v3p1-70b-instruct"
         case .ollama: return "codellama"
         }
     }
@@ -28,13 +38,18 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .openAI: return "https://api.openai.com/v1/chat/completions"
         case .groq: return "https://api.groq.com/openai/v1/chat/completions"
+        case .gemini: return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        case .deepseek: return "https://api.deepseek.com/chat/completions"
+        case .mistral: return "https://api.mistral.ai/v1/chat/completions"
+        case .together: return "https://api.together.xyz/v1/chat/completions"
+        case .fireworks: return "https://api.fireworks.ai/inference/v1/chat/completions"
         case .ollama: return "http://localhost:11434/api/generate"
         }
     }
     
     var requiresAPIKey: Bool {
         switch self {
-        case .openAI, .groq: return true
+        case .openAI, .groq, .gemini, .deepseek, .mistral, .together, .fireworks: return true
         case .ollama: return false
         }
     }
@@ -43,6 +58,11 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .openAI: return "OPENAI_API_KEY"
         case .groq: return "GROQ_API_KEY"
+        case .gemini: return "GEMINI_API_KEY"
+        case .deepseek: return "DEEPSEEK_API_KEY"
+        case .mistral: return "MISTRAL_API_KEY"
+        case .together: return "TOGETHER_API_KEY"
+        case .fireworks: return "FIREWORKS_API_KEY"
         case .ollama: return ""
         }
     }
@@ -205,7 +225,7 @@ class AIShaderService: ObservableObject {
                     conversationHistory.append(ChatMessage(role: "assistant", content: code))
                 }
                 return result
-            case .openAI, .groq:
+            case .openAI, .groq, .gemini, .deepseek, .mistral, .together, .fireworks:
                 let result = try await generateWithOpenAICompatible(prompt: userMessage, provider: provider)
                 if let code = result {
                     // Add to conversation history
@@ -220,7 +240,7 @@ class AIShaderService: ObservableObject {
         }
     }
     
-    // MARK: - OpenAI Compatible API (OpenAI, Groq)
+    // MARK: - OpenAI Compatible API (OpenAI, Groq, Gemini, DeepSeek, Mistral, Together, Fireworks)
     
     private func generateWithOpenAICompatible(prompt: String, provider: AIProvider) async throws -> String? {
         guard let apiKey = getAPIKey(for: provider) else { return nil }
@@ -261,10 +281,14 @@ class AIShaderService: ObservableObject {
         }
         
         if httpResponse.statusCode != 200 {
-            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = errorJson["error"] as? [String: Any],
-               let message = error["message"] as? String {
-                throw AIServiceError.apiError(message)
+            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                // OpenAI/Groq format: {"error": {"message": "..."}}
+                if let error = errorJson["error"] as? [String: Any],
+                   let message = error["message"] as? String {
+                    throw AIServiceError.apiError(message)
+                }
+                // Google format might be different - log it
+                print("API Error Response: \(errorJson)")
             }
             throw AIServiceError.httpError(httpResponse.statusCode)
         }
@@ -272,8 +296,27 @@ class AIShaderService: ObservableObject {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = json["choices"] as? [[String: Any]],
               let firstChoice = choices.first,
-              let message = firstChoice["message"] as? [String: Any],
-              let content = message["content"] as? String else {
+              let message = firstChoice["message"] as? [String: Any] else {
+            // Debug: print raw response for troubleshooting
+            if let rawString = String(data: data, encoding: .utf8) {
+                print("AI Response Debug: \(rawString.prefix(500))")
+            }
+            throw AIServiceError.parseError
+        }
+        
+        // Handle different content formats (standard string or array of parts for thinking models)
+        let content: String
+        if let textContent = message["content"] as? String {
+            content = textContent
+        } else if let contentParts = message["content"] as? [[String: Any]] {
+            // For thinking models that return array of content parts
+            content = contentParts.compactMap { part -> String? in
+                if part["type"] as? String == "text" {
+                    return part["text"] as? String
+                }
+                return nil
+            }.joined(separator: "\n")
+        } else {
             throw AIServiceError.parseError
         }
         

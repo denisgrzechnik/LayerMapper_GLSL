@@ -315,6 +315,16 @@ struct NewShaderView: View {
             return "GPT-4o-mini: ~$0.15/1M tokens. Requires API key from platform.openai.com"
         case .groq:
             return "Free 6000 req/day. Sign up at console.groq.com"
+        case .gemini:
+            return "Gemini 2.0 Flash: Free unlimited. Sign up at aistudio.google.com"
+        case .deepseek:
+            return "Very cheap ~$0.14/1M tokens. Sign up at platform.deepseek.com"
+        case .mistral:
+            return "Codestral model. Sign up at console.mistral.ai"
+        case .together:
+            return "Many open-source models. Sign up at api.together.xyz"
+        case .fireworks:
+            return "Fast inference. Sign up at fireworks.ai"
         case .ollama:
             return "Local on Mac. Install: brew install ollama && ollama pull codellama"
         }
@@ -598,6 +608,16 @@ struct APIKeySettingsSheet: View {
             return "You can find it at platform.openai.com/api-keys"
         case .groq:
             return "You can find it at console.groq.com/keys"
+        case .gemini:
+            return "You can find it at aistudio.google.com/apikey"
+        case .deepseek:
+            return "You can find it at platform.deepseek.com/api_keys"
+        case .mistral:
+            return "You can find it at console.mistral.ai/api-keys"
+        case .together:
+            return "You can find it at api.together.xyz/settings/api-keys"
+        case .fireworks:
+            return "You can find it at fireworks.ai/api-keys"
         case .ollama:
             return "Ollama doesn't require an API key"
         }
@@ -609,6 +629,16 @@ struct APIKeySettingsSheet: View {
             return URL(string: "https://platform.openai.com/api-keys")!
         case .groq:
             return URL(string: "https://console.groq.com/keys")!
+        case .gemini:
+            return URL(string: "https://aistudio.google.com/apikey")!
+        case .deepseek:
+            return URL(string: "https://platform.deepseek.com/api_keys")!
+        case .mistral:
+            return URL(string: "https://console.mistral.ai/api-keys")!
+        case .together:
+            return URL(string: "https://api.together.xyz/settings/api-keys")!
+        case .fireworks:
+            return URL(string: "https://fireworks.ai/api-keys")!
         case .ollama:
             return URL(string: "https://ollama.ai")!
         }
