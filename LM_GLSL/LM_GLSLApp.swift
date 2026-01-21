@@ -76,7 +76,7 @@ struct LM_GLSLApp: App {
         WindowGroup {
             ContentView()
                 .onAppear {
-                    removeDuplicateShaders()  // Clean up duplicates first
+                    // removeDuplicateShaders()  // Clean up duplicates first - DISABLED
                     loadBuiltInShadersIfNeeded()
                     createPublicFolderIfNeeded()
                     setupICloudKVSSync()
@@ -88,6 +88,17 @@ struct LM_GLSLApp: App {
                         iCloudFolderSync.importFromiCloud(context: sharedModelContainer.mainContext)
                         logDatabaseStatus()
                         exportFoldersToAppGroups()
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                    // Save data when app goes to background
+                    Task { @MainActor in
+                        do {
+                            try sharedModelContainer.mainContext.save()
+                            print("💾 SwiftData: Saved on app going to background")
+                        } catch {
+                            print("❌ SwiftData: Failed to save on background: \(error)")
+                        }
                     }
                 }
                 .environmentObject(iCloudFolderSync)

@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import SwiftData
 import CloudKit
 
 struct SharedShaderGalleryView: View {
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var cloudService = CloudKitShaderService.shared
     @Environment(\.dismiss) var dismiss
     
@@ -20,8 +22,8 @@ struct SharedShaderGalleryView: View {
     @State private var downloadedCode: String?
     @State private var showingDownloadSuccess: Bool = false
     
-    // Callback when shader is imported
-    var onImport: ((String, String) -> Void)?
+    // Callback when shader is imported (now receives ShaderEntity)
+    var onImport: ((ShaderEntity) -> Void)?
     
     private let categories = ["All", "Basic", "Abstract", "Geometric", "Nature", "Cosmic", "Retro", "Psychedelic", "Patterns", "Fractals"]
     
@@ -76,8 +78,9 @@ struct SharedShaderGalleryView: View {
             if let shader = selectedShader {
                 ShaderDetailSheet(
                     shader: shader,
-                    onImport: { code, name in
-                        onImport?(code, name)
+                    modelContext: modelContext,
+                    onImport: { newShader in
+                        onImport?(newShader)
                         showingDownloadSuccess = true
                         dismiss()
                     }
@@ -339,7 +342,8 @@ struct SharedShaderCard: View {
 
 struct ShaderDetailSheet: View {
     let shader: CloudKitShaderService.SharedShader
-    let onImport: (String, String) -> Void
+    let modelContext: ModelContext
+    let onImport: (ShaderEntity) -> Void
     
     @Environment(\.dismiss) var dismiss
     @StateObject private var cloudService = CloudKitShaderService.shared
@@ -463,8 +467,20 @@ struct ShaderDetailSheet: View {
                             Button(action: {
                                 isDownloading = true
                                 Task {
-                                    if let code = await cloudService.downloadShader(shader) {
-                                        onImport(code, shader.name)
+                                    do {
+                                        let newShader = try await cloudService.downloadShaderAsEntity(shader)
+                                        await MainActor.run {
+                                            modelContext.insert(newShader)
+                                            do {
+                                                try modelContext.save()
+                                                print("✅ Community shader '\(shader.name)' saved successfully to local database")
+                                                onImport(newShader)
+                                            } catch {
+                                                print("❌ Failed to save community shader: \(error)")
+                                            }
+                                        }
+                                    } catch {
+                                        print("❌ Failed to download shader: \(error)")
                                     }
                                     isDownloading = false
                                 }
@@ -507,4 +523,5 @@ struct ShaderDetailSheet: View {
 
 #Preview {
     SharedShaderGalleryView()
+        .modelContainer(for: [ShaderEntity.self], inMemory: true)
 }

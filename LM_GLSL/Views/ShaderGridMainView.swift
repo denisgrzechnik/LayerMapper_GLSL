@@ -254,12 +254,17 @@ struct ShaderGridMainView: View {
                 let newShader = try await CloudKitShaderService.shared.downloadShaderAsEntity(shaderInfo)
                 await MainActor.run {
                     modelContext.insert(newShader)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                        print("✅ Community shader '\(shaderInfo.name)' saved successfully to local database")
+                    } catch {
+                        print("❌ Failed to save community shader to database: \(error)")
+                    }
                     selectedShader = newShader
                     showingCommunityShaders = false
                 }
             } catch {
-                print("Failed to download shader: \(error)")
+                print("❌ Failed to download shader: \(error)")
             }
         }
     }
