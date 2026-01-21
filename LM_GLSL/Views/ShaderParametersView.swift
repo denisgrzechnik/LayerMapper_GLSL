@@ -79,21 +79,24 @@ struct ShaderParametersView: View {
                     
                     // Right side - Controls (30%)
                     VStack(spacing: 0) {
-                        // Top-right: Sliders
+                        // Top: Sliders (fills remaining space)
                         slidersPanel
-                            .frame(height: geometry.size.height * 0.45)
                         
-                        // Middle-right: Animation Presets (P1-P16)
+                        // Middle: Animation Presets (P1-P16) - fixed height
                         AutomationPresetPanel(
                             automationManager: automationManager,
                             shader: shader,
                             hasRecording: hasRecording
                         )
-                        .frame(height: geometry.size.height * 0.15)
+                        .frame(height: 80)
                         
-                        // Bottom-right: AI Generator
+                        // Bottom: AI Generator - fixed height
                         aiGeneratorPanel
-                            .frame(height: geometry.size.height * 0.4)
+                            .frame(height: 160)
+                        
+                        // Bottom margin for safe area
+                        Spacer()
+                            .frame(height: 20)
                     }
                     .frame(width: geometry.size.width * 0.3)
                 }
@@ -729,12 +732,8 @@ struct ButtonGridPanel: View {
     var onToggle: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
+    // 8 kolumn - przyciski kwadratowe
+    let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 8)
     
     var body: some View {
         ScrollView {
@@ -742,7 +741,7 @@ struct ButtonGridPanel: View {
                 let toggleParams = parameters.filter { $0.type == .toggle }
                 
                 if toggleParams.isEmpty {
-                    // Show placeholder buttons
+                    // Show placeholder buttons (16 = 2 rows x 8 columns)
                     ForEach(0..<16, id: \.self) { index in
                         GridButton(
                             label: "BTN \(index + 1)",
@@ -768,7 +767,7 @@ struct ButtonGridPanel: View {
     }
     
     private func gridColor(for index: Int) -> Color {
-        let row = index / 4
+        let row = index / 8
         let colors: [Color] = [.green, .yellow, .orange, .red]
         return colors[row % colors.count]
     }
