@@ -106,8 +106,8 @@ float2 p = uv;
 float2 grid = floor(p * 30.0);
 float2 f = fract(p * 30.0);
 float h = fract(sin(dot(grid, float2(12.9898, 78.233)) + iTime * 0.5) * 43758.5453);
-float char = step(0.3, f.x) * step(f.x, 0.7) * step(0.2, f.y) * step(f.y, 0.8);
-char *= step(0.5, h);
+float charVal = step(0.3, f.x) * step(f.x, 0.7) * step(0.2, f.y) * step(f.y, 0.8);
+charVal *= step(0.5, h);
 float3 col = float3(0.0, char, 0.0);
 return float4(col, 1.0);
 """

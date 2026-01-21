@@ -199,7 +199,7 @@ if (p.x > borderMin.x && p.x < borderMax.x && p.y > borderMin.y && p.y < borderM
     screenP.x += iTime * scrollSpeed * 0.1;
     float2 charPos = floor(screenP * charScale);
     float charRand = fract(sin(dot(charPos, float2(12.9898, 78.233))) * 43758.5453);
-    float char = step(0.3, charRand) * step(charRand, 0.7);
+    float charVal = step(0.3, charRand) * step(charRand, 0.7);
     float2 inChar = fract(screenP * charScale);
     float charPixel = step(0.2, inChar.x) * step(inChar.x, 0.8);
     charPixel *= step(0.2, inChar.y) * step(inChar.y, 0.8);

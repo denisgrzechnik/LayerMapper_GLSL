@@ -71,7 +71,31 @@ let rainbowGradientCode = """
 // @toggle bloom "Bloom" default(false)
 // @toggle filmGrain "Film Grain" default(false)
 
-float2 p = (uv - 0.5 + float2(offsetX, offsetY)) * scale;
+float2 center = float2(centerX, centerY);
+float2 p = (uv - center) * zoom;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize);
+    p = floor(p * 100.0 / pxSize) * pxSize / 100.0;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float segments = 6.0;
+    angle = fmod(angle, 6.28318 / segments);
+    angle = abs(angle - 3.14159 / segments);
+    float radius = length(p);
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += float2(sin(p.y * 10.0 + iTime), cos(p.x * 10.0 + iTime)) * distortion * 0.1;
+}
+
+p = (p + float2(offsetX, offsetY)) * scale;
 float c = cos(rotation); float s = sin(rotation);
 p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
 p += 0.5;
@@ -84,7 +108,7 @@ if (radial > 0.5) t += length(p - 0.5);
 if (t == 0.0) t = p.x;
 
 if (mirror > 0.5) t = abs(t - 0.5) * 2.0;
-if (waveAmplitude > 0.0) t += sin(p.y * 10.0 + iTime) * waveAmplitude;
+if (waveAmplitude > 0.0) t += sin(p.y * waveFrequency + iTime * noiseSpeed) * waveAmplitude;
 
 float timeVal = animated > 0.5 ? iTime * speed : 0.0;
 if (reverse > 0.5) timeVal = -timeVal;
@@ -93,23 +117,76 @@ t = t + timeVal;
 if (stripes > 0.5) t = floor(t * 10.0) / 10.0;
 
 float3 phase = float3(phaseR, phaseG, phaseB);
-if (colorShift > 0.5) phase += iTime * 0.1;
+if (colorShift > 0.5) phase += iTime * colorSpeed;
+
+// Hue shift
+phase += hueShift * 6.28;
 
 float3 col = saturation + brightness * cos(frequency * (t + phase));
 
+// Apply contrast
+col = (col - 0.5) * contrast + 0.5;
+
+// Apply gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
 if (pulse > 0.5) col *= 0.8 + 0.2 * sin(iTime * 3.0);
 if (pastel > 0.5) col = mix(col, float3(1.0), 0.3);
-if (neon > 0.5) col = pow(col, float3(0.5)) * 1.5;
+if (neon > 0.5) col = pow(max(col, float3(0.0)), float3(0.5)) * 1.5;
 
+// Glow effect
+if (glow > 0.5) {
+    float glowVal = exp(-length(uv - center) * 3.0) * glowIntensity;
+    col += glowVal;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Noise
 if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0, float2(12.9898, 78.233))) * 43758.5453);
+    float n = fract(sin(dot(uv * 100.0 * noiseScale, float2(12.9898, 78.233))) * 43758.5453);
     col += (n - 0.5) * 0.1;
 }
 
-if (vignette > 0.5) {
-    float vig = 1.0 - length(uv - 0.5) * 0.8;
-    col *= vig;
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
 }
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float2 dir = normalize(uv - center);
+    col.r = saturation + brightness * cos(frequency * (t + 0.02 * chromaticAmount + phase.r));
+    col.b = saturation + brightness * cos(frequency * (t - 0.02 * chromaticAmount + phase.b));
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+}
+
+// Invert
+if (invert > 0.5) col = 1.0 - col;
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 1.5;
+    col *= max(vig, 0.0);
+}
+
+// Shadow and highlight
+col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
@@ -178,48 +255,125 @@ let plasmaCode = """
 // @toggle fractal "Fractal" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * scale;
+float2 p = (uv - center) * zoom * scale;
+
+// Rotation
+float cosR = cos(rotation); float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize);
+    p = floor(p * 10.0 / pxSize) * pxSize / 10.0;
+}
 
 if (mirror > 0.5) p = abs(p);
 if (kaleidoscope > 0.5) {
     float a = atan2(p.y, p.x);
-    a = mod(a, 0.785) - 0.393;
+    a = fmod(a, 0.785) - 0.393;
     float r = length(p);
     p = float2(cos(a), sin(a)) * r;
 }
 
 float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+float morphTime = timeVal * morphSpeed;
 
 float v = 0.0;
 if (waves > 0.5) {
-    v += sin(p.x + timeVal);
-    v += sin(p.y + timeVal * 0.5);
-    v += sin((p.x + p.y) + timeVal * 0.3);
+    v += sin(p.x * waveFrequency / 3.0 + timeVal) * waveAmplitude;
+    v += sin(p.y * waveFrequency / 3.0 + timeVal * 0.5) * waveAmplitude;
+    v += sin((p.x + p.y) * waveFrequency / 3.0 + timeVal * 0.3) * waveAmplitude;
 }
 if (radial > 0.5) v += sin(length(p) * complexity + timeVal);
 if (spiral > 0.5) v += sin(atan2(p.y, p.x) * 3.0 + length(p) * 2.0 - timeVal);
 
+// Fractal layers
+if (fractal > 0.5) {
+    float amp = 0.5;
+    for (int i = 0; i < int(layers); i++) {
+        v += sin(p.x * float(i + 1) + timeVal) * amp;
+        v += sin(p.y * float(i + 1) * 1.3 + timeVal * 0.7) * amp;
+        amp *= 0.5;
+    }
+}
+
 v *= complexity;
+if (turbulence > 0.0) v = abs(sin(v * 3.14159 * turbulence));
 if (distortion > 0.0) v += sin(v * distortion * 10.0) * distortion;
 
-float3 phase = float3(0.0, 2.0, 4.0) + colorShift;
-if (colorCycle > 0.5) phase += iTime * 0.5;
+float3 phase = float3(0.0, 2.0, 4.0) + colorShift + hueOffset * 6.28;
+if (colorCycle > 0.5) phase += iTime * colorSpeed;
 
 float3 col = 0.5 + 0.5 * cos(v + phase);
 col *= float3(redAmount, greenAmount, blueAmount);
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
 
 if (pulse > 0.5) col *= 0.8 + 0.2 * sin(iTime * 4.0);
 if (invert > 0.5) col = 1.0 - col;
 if (highContrast > 0.5) col = smoothstep(0.3, 0.7, col);
 if (pastel > 0.5) col = mix(col, float3(1.0), 0.4);
-if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+if (neon > 0.5) col = pow(max(col, float3(0.0)), float3(0.6)) * 1.4;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Apply gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Glow effect
+if (glow > 0.5) {
+    float glowVal = exp(-length(uv - center) * 3.0) * glowIntensity;
+    col += glowVal;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 50.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.1;
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float2 dir = uv - center;
+    float3 colR = 0.5 + 0.5 * cos(v + phase + chromaticAmount * 10.0);
+    float3 colB = 0.5 + 0.5 * cos(v + phase - chromaticAmount * 10.0);
+    col.r = colR.r * redAmount;
+    col.b = colB.b * blueAmount;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+}
+
+// Shadow and highlight
+col = col * (1.0 - shadowDepth * 0.5) + highlightPower * 0.2;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
 }
 
 if (grid > 0.5) {
@@ -227,7 +381,7 @@ if (grid > 0.5) {
     col *= 0.8 + 0.2 * step(0.45, min(g.x, g.y));
 }
 
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.6;
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize * 1.2;
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
 return float4(col, 1.0);
@@ -292,14 +446,52 @@ let noiseCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle bloom "Bloom" default(false)
 // @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle edgeGlow "Edge Glow" default(false)
 
-float2 p = (uv + float2(offsetX, offsetY)) * scale;
+float2 pos = uv;
 float timeVal = animated > 0.5 ? iTime * speed : 0.0;
 
-if (pixelated > 0.5) p = floor(p * grainSize) / grainSize;
+// === NOWE EFEKTY - PRE-PROCESSING ===
+
+// Pixelate (używa pixelSize zamiast pixelated toggle)
+if (pixelated > 0.5) {
+    float pxSize = max(pixelSize / 100.0, 0.01);
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float kAngle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    kAngle = fmod(kAngle, 6.28318 / segments);
+    kAngle = abs(kAngle - 3.14159 / segments);
+    float kRadius = length(kp);
+    pos = float2(cos(kAngle), sin(kAngle)) * kRadius + 0.5;
+}
+
+// Mirror effect
+if (mirror > 0.5) {
+    pos = abs(pos - 0.5) + 0.5;
+}
+
+// Zoom and rotation around center
+float2 center = float2(centerX, centerY);
+float2 centered = pos - center;
+float rotAngle = rotation + morphSpeed * timeVal;
+float cosR = cos(rotAngle);
+float sinR = sin(rotAngle);
+centered = float2(centered.x * cosR - centered.y * sinR, centered.x * sinR + centered.y * cosR);
+centered *= zoom;
+pos = centered + center;
+
+// === ORYGINALNA LOGIKA NOISE ===
+float2 p = (pos + float2(offsetX, offsetY)) * scale;
+
 if (vortex > 0.5) {
-    float a = atan2(p.y - scale * 0.5, p.x - scale * 0.5);
-    p += float2(cos(a), sin(a)) * timeVal;
+    float vAngle = atan2(p.y - scale * 0.5, p.x - scale * 0.5);
+    p += float2(cos(vAngle), sin(vAngle)) * timeVal;
 }
 
 float n = 0.0;
@@ -316,11 +508,11 @@ for (int i = 0; i < 5; i++) {
         float2 f = fract(p * freq * grainSize + timeVal);
         f = f * f * (3.0 - 2.0 * f);
         float2 noiseP2 = floor(p * freq * grainSize + timeVal);
-        float a = fract(sin(dot(noiseP2, float2(12.9898, 78.233))) * 43758.5453);
-        float b = fract(sin(dot(noiseP2 + float2(1.0, 0.0), float2(12.9898, 78.233))) * 43758.5453);
-        float c = fract(sin(dot(noiseP2 + float2(0.0, 1.0), float2(12.9898, 78.233))) * 43758.5453);
-        float d = fract(sin(dot(noiseP2 + float2(1.0, 1.0), float2(12.9898, 78.233))) * 43758.5453);
-        layerNoise = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        float nA = fract(sin(dot(noiseP2, float2(12.9898, 78.233))) * 43758.5453);
+        float nB = fract(sin(dot(noiseP2 + float2(1.0, 0.0), float2(12.9898, 78.233))) * 43758.5453);
+        float nC = fract(sin(dot(noiseP2 + float2(0.0, 1.0), float2(12.9898, 78.233))) * 43758.5453);
+        float nD = fract(sin(dot(noiseP2 + float2(1.0, 1.0), float2(12.9898, 78.233))) * 43758.5453);
+        layerNoise = mix(mix(nA, nB, f.x), mix(nC, nD, f.x), f.y);
     }
     
     n += layerNoise * amplitude;
@@ -332,42 +524,112 @@ for (int i = 0; i < 5; i++) {
 if (fractal > 0.5) n /= (2.0 - pow(0.5, float(numLayers)));
 if (turbulence > 0.0) n = abs(n * 2.0 - 1.0) * turbulence + n * (1.0 - turbulence);
 
+// Wave effect (używa waveFrequency i waveAmplitude)
+if (waves > 0.5 || waveAmplitude > 0.01) {
+    n += sin(pos.y * waveFrequency + timeVal * 2.0) * waveAmplitude;
+}
+
 n = (n - 0.5) * contrast + 0.5;
 n *= brightness;
 
-if (waves > 0.5) n += sin(uv.y * 20.0 + timeVal * 2.0) * 0.1;
 if (pulse > 0.5) n *= 0.8 + 0.2 * sin(timeVal * 3.0);
 
 float3 col = float3(n);
 
 if (colored > 0.5) {
-    col = 0.5 + 0.5 * cos(n * 6.28 + float3(0.0, 2.0, 4.0) + timeVal);
+    col = 0.5 + 0.5 * cos(n * 6.28 + float3(0.0, 2.0, 4.0) + timeVal * colorSpeed);
 }
 if (gradient > 0.5) {
-    col *= mix(float3(0.2, 0.3, 0.8), float3(1.0, 0.5, 0.2), uv.y);
+    col *= mix(float3(0.2, 0.3, 0.8), float3(1.0, 0.5, 0.2), pos.y);
 }
 
 col *= float3(redTint, greenTint, blueTint);
 
-if (chromatic > 0.5) {
-    float offset = 0.005;
-    float nR = fract(sin(dot(floor((uv + float2(offset, 0.0) + float2(offsetX, offsetY)) * scale * grainSize + timeVal), float2(12.9898, 78.233))) * 43758.5453);
-    float nB = fract(sin(dot(floor((uv - float2(offset, 0.0) + float2(offsetX, offsetY)) * scale * grainSize + timeVal), float2(12.9898, 78.233))) * 43758.5453);
-    col.r = nR * redTint * brightness;
-    col.b = nB * blueTint * brightness;
+// === NOWE EFEKTY - POST-PROCESSING ===
+
+// Color shift (RGB → GBR)
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift (Rodrigues rotation formula)
+if (hueShift > 0.01) {
+    float hAngle = hueShift * 6.28318;
+    float3 k = float3(0.57735, 0.57735, 0.57735);
+    float cosH = cos(hAngle);
+    float sinH = sin(hAngle);
+    col = col * cosH + cross(k, col) * sinH + k * dot(k, col) * (1.0 - cosH);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.001) {
+    float2 chromDir = (pos - 0.5) * chromaticAmount;
+    col.r = col.r + chromDir.x * 2.0;
+    col.b = col.b - chromDir.x * 2.0;
+}
+
+// Glow effect
+if (glow > 0.5 && glowIntensity > 0.01) {
+    col += col * glowIntensity;
+}
+
+// Neon effect
+if (neon > 0.5) {
+    float neonVal = pow(max(col.r, max(col.g, col.b)), 2.0);
+    col += col * neonVal * 0.5;
 }
 
 if (invert > 0.5) col = 1.0 - col;
-if (scanlines > 0.5) col *= 0.8 + 0.2 * sin(uv.y * 500.0);
+
+// Scanlines (używa scanlineIntensity)
+if (scanlines > 0.5) {
+    float scanVal = sin(pos.y * 500.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.5 * scanVal;
+}
+
 if (film > 0.5) {
-    col = mix(col, float3(dot(col, float3(0.299, 0.587, 0.114))), 0.3);
+    col = mix(col, float3(gray), 0.3);
     col *= float3(1.1, 1.0, 0.9);
 }
+
+// Bloom effect
+if (bloom > 0.5 && bloomIntensity > 0.01) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    if (luma > bloomThreshold) {
+        col += col * (luma - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
 if (grid > 0.5) {
-    float2 g = abs(fract(uv * 20.0) - 0.5);
+    float2 g = abs(fract(pos * 20.0) - 0.5);
     col *= 0.9 + 0.1 * step(0.4, min(g.x, g.y));
 }
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.7;
+
+// Vignette (używa vignetteSize)
+if (vignette > 0.5) {
+    float vigDist = length(uv - 0.5);
+    col *= 1.0 - vigDist * vignetteSize * 1.4;
+}
+
+// Edge fade
+if (edgeFade > 0.01) {
+    float2 edgeDist = min(uv, 1.0 - uv);
+    float edgeVal = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= edgeVal;
+}
+
+// Gamma correction
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -435,41 +697,104 @@ let warpTunnelCode = """
 // @toggle colorShift "Color Shift" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+if (reverse > 0.5) timeVal = -timeVal;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * 2.0 * zoom;
 
 if (mirror > 0.5) p = abs(p);
 
 float r = length(p);
 float a = atan2(p.y, p.x);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-if (reverse > 0.5) timeVal = -timeVal;
+// Apply rotation
+float rot = timeVal * rotationSpeed + morphSpeed * sin(timeVal);
+a += rot;
 
-float rotation = timeVal * rotationSpeed;
-a += rotation;
+float v = (1.0 / (r * tunnelDepth + 0.001)) * patternScale + timeVal * speed;
+if (spiral > 0.5) v += a * twistAmount * spiralTightness;
 
-if (kaleidoscope > 0.5) {
-    a = mod(a, 0.785) - 0.393;
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    v += sin(a * waveFrequency + timeVal) * waveAmplitude;
 }
 
-float v = 1.0 / (r + 0.001) + timeVal * speed;
-if (spiral > 0.5) v += a * twistAmount;
+// Distortion
+if (distortAmount > 0.0) {
+    v += sin(v * 5.0 + timeVal) * distortAmount;
+}
 
 if (rings > 0.5) v = floor(v * ringWidth * 5.0) / 5.0;
 if (stripes > 0.5) v = floor(v * 10.0) / 10.0;
+
+// Fractal layers
+float fractalVal = 0.0;
+if (fractal > 0.5) {
+    for (int i = 0; i < int(layers); i++) {
+        float layerV = v * pow(2.0, float(i));
+        fractalVal += sin(layerV) / pow(2.0, float(i));
+    }
+    v = mix(v, fractalVal, 0.5);
+}
 
 float3 col;
 if (colorful > 0.5) {
     float colorTime = timeVal * colorSpeed;
     col = 0.5 + 0.5 * cos(v + a * twistAmount + float3(0.0, 2.0, 4.0) + colorTime);
+    col *= colorIntensity;
 } else {
     col = float3(fract(v));
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Chromatic aberration
 if (chromatic > 0.5) {
-    float offset = 0.03;
-    float vR = 1.0 / (r + offset + 0.001) + timeVal * speed;
-    float vB = 1.0 / (r - offset + 0.001) + timeVal * speed;
+    float offset = chromaticAmount + 0.03;
+    float vR = (1.0 / (r + offset + 0.001)) * patternScale + timeVal * speed;
+    float vB = (1.0 / (r - offset + 0.001)) * patternScale + timeVal * speed;
     if (spiral > 0.5) {
         vR += a * twistAmount;
         vB += a * twistAmount;
@@ -479,20 +804,71 @@ if (chromatic > 0.5) {
 }
 
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 4.0);
-if (glow > 0.5) col += exp(-r * 3.0) * float3(0.5, 0.5, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = exp(-r * 3.0) * glowIntensity;
+    col += glowAmount * float3(0.5, 0.5, 1.0);
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.5;
+
 if (invert > 0.5) col = 1.0 - col;
 
+// Contrast and brightness
 col = (col - 0.5) * contrast + 0.5;
-col *= brightness;
+col *= brightness * depthIntensity;
 col *= smoothstep(fadeStart, fadeEnd, r);
 
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.1;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - r * 0.3;
+
+// Radial blur effect
+if (radialBlur > 0.5) {
+    float blur = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float scale = 1.0 - float(i) * 0.02;
+        float2 blurP = pos * scale * 2.0 * zoom;
+        float blurR = length(blurP);
+        blur += 1.0 / (blurR + 0.001);
+    }
+    col *= 0.7 + 0.3 * (blur / 5.0);
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - r * vignetteSize * 0.6;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -558,44 +934,104 @@ let starTunnelCode = """
 // @toggle colorShift "Color Shift" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+if (reverse > 0.5) timeVal = -timeVal;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    float segments = 8.0;
+    ka = fmod(ka, 6.28318 / segments);
+    ka = abs(ka - 3.14159 / segments);
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * 2.0 * zoom;
 
 if (mirror > 0.5) p = abs(p);
 
 float r = length(p);
 float a = atan2(p.y, p.x);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-if (reverse > 0.5) timeVal = -timeVal;
-
-a += timeVal * rotationSpeed;
-
-if (kaleidoscope > 0.5) {
-    float segments = 8.0;
-    a = mod(a, 6.28318 / segments);
-    a = abs(a - 3.14159 / segments);
-}
+a += timeVal * rotationSpeed + morphSpeed * sin(timeVal);
 
 float star = abs(cos(a * starPoints)) * starSharpness;
-float tunnel = 1.0 / (r + 0.001) + timeVal * speed;
+float tunnel = (1.0 / (r * tunnelDepth + 0.001)) * patternScale + timeVal * speed;
 
-if (spiral > 0.5) tunnel += a * 2.0;
+if (spiral > 0.5) tunnel += a * spiralTightness * 2.0;
+
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    tunnel += sin(a * waveFrequency + timeVal) * waveAmplitude;
+}
+
+// Distortion
+if (distortAmount > 0.0) {
+    tunnel += sin(tunnel * 5.0 + timeVal) * distortAmount;
+}
 
 float v = star * tunnel;
 if (stripes > 0.5) v = floor(v * 8.0) / 8.0;
+
+// Fractal layers
+if (fractal > 0.5) {
+    for (int i = 1; i < int(layers); i++) {
+        float layerStar = abs(cos(a * starPoints * float(i + 1))) * starSharpness;
+        v += layerStar * tunnel * 0.3 / float(i + 1);
+    }
+}
 
 float3 baseColor = float3(colorR, colorG, colorB);
 float3 col;
 
 if (colorful > 0.5) {
-    col = 0.5 + 0.5 * cos(v * 0.5 + timeVal + float3(0.0, 2.0, 4.0));
+    col = 0.5 + 0.5 * cos(v * 0.5 + timeVal * colorSpeed + float3(0.0, 2.0, 4.0));
 } else {
     col = baseColor * fract(v);
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Chromatic aberration
 if (chromatic > 0.5) {
-    float starR = abs(cos(a * starPoints + 0.1)) * starSharpness;
-    float starB = abs(cos(a * starPoints - 0.1)) * starSharpness;
+    float offset = chromaticAmount + 0.1;
+    float starR = abs(cos(a * starPoints + offset)) * starSharpness;
+    float starB = abs(cos(a * starPoints - offset)) * starSharpness;
     col.r = fract(starR * tunnel) * baseColor.r;
     col.b = fract(starB * tunnel) * baseColor.b;
 }
@@ -605,19 +1041,69 @@ if (twinkle > 0.5) {
     col *= tw;
 }
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 3.0);
-if (glow > 0.5) col += exp(-r * 2.0) * baseColor * 0.5;
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = exp(-r * 2.0) * glowIntensity;
+    col += glowAmount * baseColor;
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
-col *= brightness;
+col *= brightness * depthIntensity;
 
+// Radial blur
+if (radialBlur > 0.5) {
+    float blur = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float scale = 1.0 - float(i) * 0.02;
+        float2 blurP = pos * scale * 2.0 * zoom;
+        float blurR = length(blurP);
+        blur += abs(cos(atan2(blurP.y, blurP.x) * starPoints)) / (blurR + 0.001);
+    }
+    col *= 0.7 + 0.3 * (blur / 5.0);
+}
+
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - r * 0.4;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - r * vignetteSize * 0.8;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -683,25 +1169,48 @@ let hypnoticSpiralCode = """
 // @toggle colorShift "Color Shift" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+if (reverse > 0.5) timeVal = -timeVal;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    float segments = 6.0;
+    ka = fmod(ka, 6.28318 / segments);
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * 2.0 * zoom;
 
 if (mirror > 0.5) p = abs(p);
 
 float r = length(p);
-float a = atan2(p.y, p.x);
+float a = atan2(p.y, p.x) + rotationOffset + morphSpeed * sin(timeVal);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-if (reverse > 0.5) timeVal = -timeVal;
+float spiral = sin(r * spiralDensity * spiralTightness * patternScale - a * armCount * twistIntensity - timeVal * speed);
+if (inward > 0.5) spiral = sin(r * spiralDensity * spiralTightness * patternScale + a * armCount * twistIntensity + timeVal * speed);
 
-if (kaleidoscope > 0.5) {
-    float segments = 6.0;
-    a = mod(a, 6.28318 / segments);
+// Wave distortion
+if (distortAmount > 0.0) {
+    spiral += sin(r * waveFrequency + timeVal) * distortAmount;
 }
 
-float spiral = sin(r * spiralDensity - a * armCount - timeVal * speed);
-if (inward > 0.5) spiral = sin(r * spiralDensity + a * armCount + timeVal * speed);
-
 if (stripes > 0.5) spiral = step(0.0, spiral);
+
+// Fractal layers
+if (fractal > 0.5) {
+    for (int i = 1; i < int(layers); i++) {
+        float layerSpiral = sin(r * spiralDensity * float(i + 1) - a * armCount - timeVal * speed);
+        spiral += layerSpiral * 0.3 / float(i + 1);
+    }
+}
 
 float pulseVal = 1.0;
 if (pulse > 0.5) pulseVal = 0.7 + 0.3 * sin(timeVal * pulseSpeed);
@@ -718,27 +1227,110 @@ if (blackWhite > 0.5) {
     }
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Chromatic aberration
 if (chromatic > 0.5) {
-    float spiralR = sin(r * spiralDensity - a * armCount - timeVal * speed + 0.1);
-    float spiralB = sin(r * spiralDensity - a * armCount - timeVal * speed - 0.1);
+    float offset = chromaticAmount + 0.1;
+    float spiralR = sin(r * spiralDensity - a * armCount - timeVal * speed + offset);
+    float spiralB = sin(r * spiralDensity - a * armCount - timeVal * speed - offset);
     col.r = 0.5 + 0.5 * spiralR;
     col.b = 0.5 + 0.5 * spiralB;
 }
 
-col *= pulseVal;
-if (glow > 0.5) col += exp(-r * 2.0) * 0.3;
+col *= pulseVal * depthIntensity;
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = exp(-r * 2.0) * glowIntensity;
+    col += glowAmount;
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Radial blur
+if (radialBlur > 0.5) {
+    float blur = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float scale = 1.0 - float(i) * 0.02;
+        float2 blurP = pos * scale * 2.0 * zoom;
+        float blurR = length(blurP);
+        float blurA = atan2(blurP.y, blurP.x);
+        blur += sin(blurR * spiralDensity - blurA * armCount - timeVal * speed);
+    }
+    col *= 0.8 + 0.2 * (blur / 5.0 + 0.5);
+}
+
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.1;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - r * 0.3;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - r * vignetteSize * 0.6;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -806,21 +1398,44 @@ let fireCode = """
 // @toggle colorShift "Color Shift" default(false)
 // @toggle radialBlur "Radial Blur" default(false)
 
-float2 p = uv;
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * zoom + center;
 if (mirror > 0.5) p.x = abs(p.x - 0.5) + 0.5;
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-p.y += timeVal * speed;
+p.y += timeVal * speed + morphSpeed * sin(timeVal);
 
 float n = 0.0;
 float amp = intensity;
-float2 freq = float2(turbulence, turbulence) * noiseScale;
+float2 freq = float2(turbulence, turbulence) * noiseScale * patternScale;
 
+int numLayers = int(layers);
 for (int i = 0; i < 5; i++) {
+    if (i >= numLayers) break;
     float noiseVal = sin(p.x * freq.x * flameWidth + p.y * freq.y + timeVal * flickerSpeed);
     n += amp * (0.5 + 0.5 * noiseVal);
     freq *= 2.0;
     amp *= 0.5;
+}
+
+// Distortion
+if (distortAmount > 0.0) {
+    n += sin(n * 5.0 + timeVal) * distortAmount;
 }
 
 float fire = pow(max(0.0, 1.0 - (uv.y - baseY)), height) * n;
@@ -845,32 +1460,120 @@ if (blueFlame > 0.5) {
 float3 col = mix(coldColor, hotColor, fire);
 col = mix(float3(0.0), col, fire);
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Embers effect
 if (embers > 0.5) {
-    float ember = fract(sin(dot(floor(uv * 50.0 + timeVal * 2.0), float2(12.9898, 78.233))) * 43758.5453);
-    ember = step(0.97, ember) * fire * 2.0;
+    float ember = fract(sin(dot(floor(uv * 50.0 * emberDensity + timeVal * 2.0), float2(12.9898, 78.233))) * 43758.5453);
+    ember = step(1.0 - emberSize * 0.1, ember) * fire * 2.0;
     col += float3(1.0, 0.6, 0.2) * ember;
 }
 
+// Smoke effect
 if (smoke > 0.5 || smokeAmount > 0.0) {
-    float smokeVal = pow(max(0.0, uv.y - 0.5), 0.5) * smokeAmount;
-    float smokeNoise = fract(sin(dot(floor(uv * 20.0 - timeVal), float2(12.9898, 78.233))) * 43758.5453);
+    float smokeVal = pow(max(0.0, uv.y - 0.5), 0.5) * smokeAmount * smokeDensity;
+    float smokeNoise = fract(sin(dot(floor(uv * 20.0 - timeVal * smokeSpeed), float2(12.9898, 78.233))) * 43758.5453);
     col += float3(0.3, 0.3, 0.35) * smokeVal * smokeNoise;
 }
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    float fireR = pow(max(0.0, 1.0 - (uv.y - baseY + offset)), height) * n;
+    float fireB = pow(max(0.0, 1.0 - (uv.y - baseY - offset)), height) * n;
+    col.r = mix(coldColor.r, hotColor.r, fireR) * fireR;
+    col.b = mix(coldColor.b, hotColor.b, fireB) * fireB;
+}
+
 if (pulse > 0.5) col *= 0.8 + 0.2 * sin(timeVal * 5.0);
-if (glow > 0.5) col += fire * float3(0.2, 0.1, 0.0);
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = fire * glowIntensity;
+    col += glowAmount * float3(0.3, 0.15, 0.0);
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Radial blur
+if (radialBlur > 0.5) {
+    float blur = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float scale = 1.0 - float(i) * 0.03;
+        float2 blurP = (pos * scale * zoom + center);
+        blurP.y += timeVal * speed;
+        float blurN = sin(blurP.x * turbulence * flameWidth + blurP.y * turbulence + timeVal * flickerSpeed);
+        blur += pow(max(0.0, 1.0 - (uv.y - baseY)), height) * (0.5 + 0.5 * blurN);
+    }
+    col *= 0.7 + 0.3 * (blur / 5.0);
+}
+
+// Extra noise
 if (noise > 0.5) {
     float noiseVal = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
     col += (noiseVal - 0.5) * 0.05;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -936,22 +1639,45 @@ let oceanWavesCode = """
 // @toggle glow "Glow" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = uv;
-if (mirror > 0.5) p.x = abs(p.x - 0.5) + 0.5;
-
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
 float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * zoom + center;
+if (mirror > 0.5) p.x = abs(p.x - 0.5) + 0.5;
 
 float heightMult = storm > 0.5 ? 2.0 : (calm > 0.5 ? 0.3 : 1.0);
 float speedMult = storm > 0.5 ? 2.0 : (calm > 0.5 ? 0.5 : 1.0);
+
+// Morph effect
+float morphOffset = morphSpeed * sin(timeVal * 0.5);
 
 float wave = 0.0;
 int numLayers = int(waveLayers);
 for (int i = 0; i < 8; i++) {
     if (i >= numLayers) break;
     float fi = float(i);
-    float freq = waveFrequency + fi;
+    float freq = (waveFrequency + fi) * patternScale;
     float spd = (1.0 + fi * 0.2) * speed * speedMult;
-    wave += sin(p.x * freq + timeVal * spd + fi) * waveHeight * heightMult / (fi + 1.0);
+    wave += sin(p.x * freq + timeVal * spd + fi + morphOffset) * waveHeight * heightMult / (fi + 1.0);
+}
+
+// Distortion
+if (distortAmount > 0.0) {
+    wave += sin(wave * 5.0 + timeVal * colorSpeed) * distortAmount * 0.1;
 }
 
 float water = smoothstep(0.0, 0.02, wave + 0.5 - p.y);
@@ -972,8 +1698,13 @@ if (tropical > 0.5) {
 
 float3 col = mix(deepColor, surfaceColor, water);
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
 if (depth > 0.5) {
-    col += float3(0.3, 0.4, 0.5) * (1.0 - uv.y) * 0.5;
+    col += float3(0.3, 0.4, 0.5) * (1.0 - p.y) * 0.5;
 }
 
 if (foam > 0.5) {
@@ -982,7 +1713,7 @@ if (foam > 0.5) {
 }
 
 if (sunReflection > 0.5) {
-    float sun = exp(-pow((p.x - 0.5) * 3.0, 2.0)) * (1.0 - p.y) * 0.5;
+    float sun = exp(-pow((p.x - 0.5) * (3.0 / sunSize), 2.0)) * (1.0 - p.y) * sunIntensity;
     sun *= 0.7 + 0.3 * sin(timeVal * 2.0 + p.x * 10.0);
     col += float3(1.0, 0.9, 0.7) * sun;
 }
@@ -993,17 +1724,100 @@ if (caustics > 0.5) {
 }
 
 if (bubbles > 0.5) {
-    float bubble = fract(sin(dot(floor(uv * 30.0 + timeVal), float2(12.9898, 78.233))) * 43758.5453);
+    float bubble = fract(sin(dot(floor(p * 30.0 + timeVal), float2(12.9898, 78.233))) * 43758.5453);
     bubble = step(0.95, bubble) * (1.0 - p.y);
     col += float3(0.5, 0.7, 1.0) * bubble;
 }
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.01;
+    float waveR = 0.0;
+    float waveB = 0.0;
+    for (int i = 0; i < numLayers; i++) {
+        float fi = float(i);
+        float freq = (waveFrequency + fi) * patternScale;
+        float spd = (1.0 + fi * 0.2) * speed * speedMult;
+        waveR += sin((p.x + offset) * freq + timeVal * spd + fi) * waveHeight * heightMult / (fi + 1.0);
+        waveB += sin((p.x - offset) * freq + timeVal * spd + fi) * waveHeight * heightMult / (fi + 1.0);
+    }
+    float waterR = smoothstep(0.0, 0.02, waveR + 0.5 - p.y);
+    float waterB = smoothstep(0.0, 0.02, waveB + 0.5 - p.y);
+    col.r = mix(deepColor.r, surfaceColor.r, waterR);
+    col.b = mix(deepColor.b, surfaceColor.b, waterB);
+}
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = water * glowIntensity * 0.3;
+    col += glowAmount * surfaceColor;
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
+
+col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.4;
+// Noise
+if (noiseAmount > 0.0) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize * 0.8;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1069,19 +1883,35 @@ let auroraCode = """
 // @toggle glow "Glow" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = uv;
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * zoom + center;
 if (mirror > 0.5) p.x = abs(p.x - 0.5) + 0.5;
 if (vertical > 0.5) p = p.yx;
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-
 float3 col = float3(0.0, skyDarkness, skyDarkness * 2.5);
 
+// Stars
 if (stars > 0.5 || starDensity > 0.0) {
     float star = fract(sin(dot(floor(uv * 200.0), float2(12.9898, 78.233))) * 43758.5453);
     float threshold = 0.99 - starDensity * 0.05;
     if (star > threshold) {
-        float twinkle = 0.5 + 0.5 * sin(timeVal * 5.0 + star * 100.0);
+        float twinkle = 0.5 + 0.5 * sin(timeVal * 5.0 * starTwinkle + star * 100.0);
         col += float3(1.0) * twinkle * (star - threshold) * 50.0;
     }
 }
@@ -1091,15 +1921,20 @@ for (int i = 0; i < 10; i++) {
     if (i >= numLayers) break;
     float fi = float(i);
     
-    float wave = sin(p.x * waveFrequency + timeVal * speed + fi) * waveHeight + baseY + fi * layerSpacing;
+    float wave = sin(p.x * waveFrequency * patternScale + timeVal * speed + fi + morphSpeed * sin(timeVal)) * waveHeight + baseY + fi * layerSpacing;
+    
+    // Distortion
+    if (distortAmount > 0.0) {
+        wave += sin(wave * 5.0 + timeVal) * distortAmount * 0.1;
+    }
     
     if (curtain > 0.5) {
-        wave += sin(p.x * 20.0 + timeVal * 3.0 + fi * 2.0) * 0.02;
+        wave += sin(p.x * 20.0 * curtainWidth + timeVal * 3.0 * curtainSpeed + fi * 2.0) * 0.02;
     }
     
     float glowWidth = 0.1;
     if (intense > 0.5) glowWidth = 0.15;
-    float glow = smoothstep(glowWidth, 0.0, abs(p.y - wave));
+    float auroraGlow = smoothstep(glowWidth, 0.0, abs(p.y - wave));
     
     float3 auroraCol;
     if (greenDominant > 0.5) {
@@ -1114,23 +1949,105 @@ for (int i = 0; i < 10; i++) {
         auroraCol = float3(0.3, 0.8, 0.4);
     }
     
+    // Color balance
+    auroraCol.r += colorBalance * 0.2;
+    auroraCol.b -= colorBalance * 0.2;
+    
     if (shimmer > 0.5) {
-        float shimmerVal = 0.7 + 0.3 * sin(p.x * 30.0 + timeVal * 5.0 + fi * 3.0);
+        float shimmerVal = (1.0 - shimmerIntensity * 0.3) + shimmerIntensity * 0.3 * sin(p.x * 30.0 + timeVal * shimmerSpeed + fi * 3.0);
         auroraCol *= shimmerVal;
     }
     
-    col += glow * auroraCol * glowIntensity;
+    col += auroraGlow * auroraCol * glowIntensity;
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.01;
+    float waveR = sin((p.x + offset) * waveFrequency + timeVal * speed) * waveHeight + baseY;
+    float waveB = sin((p.x - offset) * waveFrequency + timeVal * speed) * waveHeight + baseY;
+    col.r += smoothstep(0.1, 0.0, abs(p.y - waveR)) * 0.3;
+    col.b += smoothstep(0.1, 0.0, abs(p.y - waveB)) * 0.3;
+}
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = (1.0 - abs(p.y - baseY)) * glowIntensity * 0.2;
+    col += glowAmount * float3(0.3, 0.8, 0.4);
 }
 
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 2.0);
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.4;
+// Noise
+if (noiseAmount > 0.0) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize * 0.8;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1196,17 +2113,33 @@ let electricStormCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = uv * 2.0 - 1.0;
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = pos * zoom * 2.0;
 if (mirror > 0.5) p.x = abs(p.x);
 if (horizontal > 0.5) p = p.yx;
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-
 float3 col = float3(skyDarkness, skyDarkness, skyDarkness * 2.5);
 
+// Clouds
 if (clouds > 0.5) {
-    float cloud = fract(sin(dot(floor(uv * 10.0 + timeVal * 0.1), float2(12.9898, 78.233))) * 43758.5453);
-    cloud = smoothstep(0.4, 0.6, cloud) * 0.1;
+    float cloud = fract(sin(dot(floor(uv * 10.0 + timeVal * cloudSpeed), float2(12.9898, 78.233))) * 43758.5453);
+    cloud = smoothstep(0.4 - cloudDensity * 0.3, 0.6 + cloudDensity * 0.3, cloud) * 0.1;
     col += float3(cloud);
 }
 
@@ -1217,11 +2150,22 @@ if (purple > 0.5) boltColor = float3(0.7, 0.3, 1.0);
 if (orange > 0.5) boltColor = float3(1.0, 0.6, 0.2);
 if (green > 0.5) boltColor = float3(0.3, 1.0, 0.5);
 
+// Color shift
+if (colorShift > 0.5) {
+    boltColor = boltColor.gbr;
+}
+
 int numBolts = int(boltCount);
+int numLayers = int(layers);
 for (int i = 0; i < 10; i++) {
     if (i >= numBolts) break;
     float fi = float(i);
-    float x = sin(p.y * 10.0 + timeVal * speed + fi * 2.0) * zigzagAmount;
+    float x = sin(p.y * 10.0 * patternScale + timeVal * speed + fi * 2.0 + morphSpeed * sin(timeVal)) * zigzagAmount;
+    
+    // Distortion
+    if (distortAmount > 0.0) {
+        x += sin(p.y * 20.0 + timeVal) * distortAmount * 0.1;
+    }
     
     if (branching > 0.5 && i > 0) {
         x += sin(p.y * 20.0 + fi * 5.0) * zigzagAmount * 0.3;
@@ -1229,8 +2173,9 @@ for (int i = 0; i < 10; i++) {
     
     float bolt = smoothstep(boltWidth, 0.0, abs(p.x - x - (fi - float(numBolts) / 2.0) * 0.3));
     
+    // Glow effect
     if (glow > 0.5) {
-        float glowBolt = exp(-abs(p.x - x - (fi - float(numBolts) / 2.0) * 0.3) * 10.0) * 0.3;
+        float glowBolt = exp(-abs(p.x - x - (fi - float(numBolts) / 2.0) * 0.3) * 10.0) * glowIntensity;
         col += glowBolt * boltColor;
     }
     
@@ -1241,21 +2186,89 @@ if (flash > 0.5) {
     col += float3(0.2, 0.2, 0.3) * flashIntensity;
 }
 
+// Rain
 if (rain > 0.5) {
-    float rainDrop = fract(sin(dot(floor(uv * float2(100.0, 20.0) + float2(0.0, timeVal * 10.0)), float2(12.9898, 78.233))) * 43758.5453);
+    float rainDrop = fract(sin(dot(floor(uv * float2(100.0 * rainDensity, 20.0) + float2(0.0, timeVal * 10.0 * rainSpeed)), float2(12.9898, 78.233))) * 43758.5453);
     rainDrop = step(0.97, rainDrop);
     col += float3(0.3, 0.4, 0.5) * rainDrop * 0.5;
 }
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    float xR = sin(p.y * 10.0 * patternScale + timeVal * speed + offset) * zigzagAmount;
+    float xB = sin(p.y * 10.0 * patternScale + timeVal * speed - offset) * zigzagAmount;
+    col.r += smoothstep(boltWidth, 0.0, abs(p.x - xR)) * boltColor.r;
+    col.b += smoothstep(boltWidth, 0.0, abs(p.x - xB)) * boltColor.b;
+}
+
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 3.0);
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Noise
+if (noiseAmount > 0.0) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1323,22 +2336,39 @@ let kaleidoscopeCode = """
 // @toggle radialBlur "Radial Blur" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
-
+float2 pos = uv - center;
 float timeVal = animated > 0.5 ? iTime : 0.0;
 
-float spinAngle = spinning > 0.5 ? timeVal * 0.5 : 0.0;
-float c = cos(spinAngle + rotation);
-float s = sin(spinAngle + rotation);
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+float2 p = pos * 2.0 * zoom;
+
+float spinAngle = spinning > 0.5 ? timeVal * spinSpeed : 0.0;
+float c = cos(spinAngle + rotation + morphSpeed * sin(timeVal));
+float s = sin(spinAngle + rotation + morphSpeed * sin(timeVal));
 p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
 
 float a = atan2(p.y, p.x);
 float segmentAngle = 6.28318 / segments;
-a = mod(a, segmentAngle);
-if (mirror > 0.5) a = abs(a - segmentAngle * 0.5);
+a = fmod(a + symmetryOffset * segmentAngle, segmentAngle);
+if (mirror > 0.5) a = abs(a - segmentAngle * 0.5) + mirrorOffset * 0.1;
 
 float r = length(p);
 float2 np = float2(cos(a), sin(a)) * r;
+
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    np += sin(np * waveFrequency + timeVal) * waveAmplitude * 0.1;
+}
+
+// Distortion
+if (distortAmount > 0.0) {
+    np += sin(np * 5.0 + timeVal) * distortAmount * 0.1;
+}
 
 float pattern = 0.0;
 if (circles > 0.5) {
@@ -1353,6 +2383,14 @@ if (circles > 0.5) {
 
 if (waves > 0.5) {
     pattern += sin(r * 5.0 - timeVal * 2.0) * 0.3;
+}
+
+// Fractal layers
+if (fractal > 0.5) {
+    for (int i = 1; i < int(fractalDepth); i++) {
+        float layerPattern = sin(np.x * patternScale * float(i + 1) + np.y * patternScale * float(i + 1) + timeVal * speed);
+        pattern += layerPattern * 0.5 / float(i + 1);
+    }
 }
 
 pattern *= patternComplexity;
@@ -1370,22 +2408,109 @@ if (colorful > 0.5) {
 
 col = mix(float3(0.5), col, colorMix + 0.5);
 
-if (glow > 0.5) {
-    col += exp(-r * 2.0) * 0.3;
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
 }
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    float patternR = sin((np.x + offset) * patternScale + np.y * patternScale + timeVal * speed);
+    float patternB = sin((np.x - offset) * patternScale + np.y * patternScale + timeVal * speed);
+    col.r = 0.5 + 0.5 * patternR;
+    col.b = 0.5 + 0.5 * patternB;
+}
+
+// Glow effect
+if (glow > 0.5) {
+    float glowAmount = exp(-r * 2.0) * glowIntensity;
+    col += glowAmount;
+}
+
+// Radial blur
+if (radialBlur > 0.5) {
+    float blur = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float scale = 1.0 - float(i) * 0.02;
+        float2 blurP = pos * scale * 2.0 * zoom;
+        float blurR = length(blurP);
+        blur += sin(blurR * patternScale + timeVal * speed);
+    }
+    col *= 0.8 + 0.2 * (blur / 5.0 + 0.5);
+}
+
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 3.0);
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.1;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - r * 0.3;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - r * vignetteSize * 0.6;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1450,19 +2575,44 @@ let hexagonGridCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = (uv + float2(offsetX, offsetY)) * scale;
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
 
-float c = cos(rotation);
-float s = sin(rotation);
-p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+float2 p = (pos * zoom + center + float2(offsetX, offsetY)) * scale;
+
+float co = cos(rotation + morphSpeed * sin(timeVal));
+float si = sin(rotation + morphSpeed * sin(timeVal));
+p = float2(p.x * co - p.y * si, p.x * si + p.y * co);
 
 if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    p += sin(p * waveFrequency + timeVal) * waveAmplitude;
+}
 
-float2 h = float2(1.0, 1.732);
-float2 a = mod(p, h) - h * 0.5;
-float2 b = mod(p + h * 0.5, h) - h * 0.5;
+// Distortion
+if (distortAmount > 0.0) {
+    p += sin(p * 5.0 + timeVal) * distortAmount;
+}
+
+float2 h = float2(1.0 + hexSpacing, 1.732 + hexSpacing);
+float2 a = fmod(p, h) - h * 0.5;
+float2 b = fmod(p + h * 0.5, h) - h * 0.5;
 float2 g = length(a) < length(b) ? a : b;
 
 float d = max(abs(g.x), abs(g.y) * 0.577 + abs(g.x) * 0.5);
@@ -1477,12 +2627,13 @@ if (pulse > 0.5) {
 }
 
 float hex;
+float borderWidth = lineWidth + hexBorder;
 if (outline > 0.5) {
-    hex = smoothstep(hexSizeAnim + lineWidth, hexSizeAnim, d) - smoothstep(hexSizeAnim, hexSizeAnim - lineWidth, d);
+    hex = smoothstep(hexSizeAnim + borderWidth, hexSizeAnim, d) - smoothstep(hexSizeAnim, hexSizeAnim - borderWidth, d);
 } else if (filled > 0.5) {
-    hex = smoothstep(hexSizeAnim, hexSizeAnim - lineWidth, d) * fillAmount;
+    hex = smoothstep(hexSizeAnim, hexSizeAnim - borderWidth, d) * fillAmount;
 } else {
-    hex = smoothstep(hexSizeAnim, hexSizeAnim - lineWidth, d);
+    hex = smoothstep(hexSizeAnim, hexSizeAnim - borderWidth, d);
 }
 
 float2 hexId = floor(p / h);
@@ -1500,12 +2651,56 @@ if (colorful > 0.5) {
     col = float3(hex);
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
 if (gradient > 0.5) {
     col *= mix(float3(0.5, 0.7, 1.0), float3(1.0, 0.5, 0.7), uv.y);
 }
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    float2 pR = p + float2(offset, 0.0);
+    float2 pB = p - float2(offset, 0.0);
+    float2 gR = length(fmod(pR, h) - h * 0.5) < length(fmod(pR + h * 0.5, h) - h * 0.5) ? mod(pR, h) - h * 0.5 : mod(pR + h * 0.5, h) - h * 0.5;
+    float2 gB = length(fmod(pB, h) - h * 0.5) < length(fmod(pB + h * 0.5, h) - h * 0.5) ? mod(pB, h) - h * 0.5 : mod(pB + h * 0.5, h) - h * 0.5;
+    float dR = max(abs(gR.x), abs(gR.y) * 0.577 + abs(gR.x) * 0.5);
+    float dB = max(abs(gB.x), abs(gB.y) * 0.577 + abs(gB.x) * 0.5);
+    col.r = smoothstep(hexSizeAnim, hexSizeAnim - borderWidth, dR);
+    col.b = smoothstep(hexSizeAnim, hexSizeAnim - borderWidth, dB);
+}
+
+// Glow effect
 if (glow > 0.5 || glowAmount > 0.0) {
-    float glowVal = exp(-d * 5.0) * (glow > 0.5 ? 0.5 : glowAmount);
+    float glowVal = exp(-d * 5.0) * (glow > 0.5 ? glowIntensity : glowAmount);
     col += glowVal * float3(0.3, 0.5, 1.0);
 }
 
@@ -1515,18 +2710,50 @@ if (grid > 0.5) {
     col = mix(col, float3(0.3), gridLine * 0.5);
 }
 
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1591,11 +2818,37 @@ let voronoiCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = (uv + float2(offsetX, offsetY)) * scale;
-if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
-
+float2 center = float2(centerX, centerY);
+float2 pos = uv - center;
 float timeVal = animated > 0.5 ? iTime : 0.0;
 
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+// Rotation
+float co = cos(rotation + morphSpeed * sin(timeVal));
+float si = sin(rotation + morphSpeed * sin(timeVal));
+pos = float2(pos.x * co - pos.y * si, pos.x * si + pos.y * co);
+
+float2 p = (pos * zoom + center + float2(offsetX, offsetY)) * scale;
+if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
+
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    p += sin(p * waveFrequency + timeVal) * waveAmplitude;
+}
+
+// Distortion
 if (distortAmount > 0.0) {
     p += float2(sin(p.y * 5.0 + timeVal), cos(p.x * 5.0 + timeVal)) * distortAmount;
 }
@@ -1610,6 +2863,12 @@ for (int i = 0; i < 25; i++) {
     if (i >= gridSize) break;
     float2 cell = float2(float(i % cells), float(i / cells));
     float2 cellOffset = 0.5 + cellMovement * sin(timeVal * speed + cell * 5.0);
+    
+    // Cell growth animation
+    if (cellGrowth > 0.0) {
+        cellOffset *= 1.0 + cellGrowth * sin(timeVal * 2.0 + cell.x + cell.y);
+    }
+    
     if (organic > 0.5) {
         cellOffset += float2(sin(timeVal + cell.x * 3.0), cos(timeVal * 0.7 + cell.y * 2.0)) * 0.2;
     }
@@ -1643,8 +2902,18 @@ if (colorful > 0.5) {
     col = float3(val);
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
 if (edges > 0.5 || edgeWidth > 0.0) {
-    float edge = smoothstep(edgeWidth, edgeWidth + 0.02, secondMinDist - minDist);
+    float borderWidth = edgeWidth + cellBorder;
+    float edge = smoothstep(borderWidth, borderWidth + 0.02, secondMinDist - minDist);
     if (cracked > 0.5) {
         col = mix(float3(0.0), col, edge);
     } else {
@@ -1660,23 +2929,98 @@ if (gradient > 0.5) {
     col *= mix(float3(0.5, 0.7, 1.0), float3(1.0, 0.5, 0.7), uv.y);
 }
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    float2 pR = (pos * zoom + center + float2(offsetX + offset, offsetY)) * scale;
+    float2 pB = (pos * zoom + center + float2(offsetX - offset, offsetY)) * scale;
+    float minDistR = 1.0, minDistB = 1.0;
+    for (int i = 0; i < gridSize && i < 25; i++) {
+        float2 cell = float2(float(i % cells), float(i / cells));
+        float2 cellOffset = 0.5 + cellMovement * sin(timeVal * speed + cell * 5.0);
+        float2 cellCenter = cell + cellOffset;
+        float dR = length(fract(pR) - cellCenter + cell - floor(pR));
+        float dB = length(fract(pB) - cellCenter + cell - floor(pB));
+        if (dR < minDistR) minDistR = dR;
+        if (dB < minDistB) minDistB = dB;
+    }
+    col.r = 0.5 + 0.5 * cos(minDistR * 10.0);
+    col.b = 0.5 + 0.5 * cos(minDistB * 10.0 + 4.0);
+}
+
+// Glow effect
 if (glow > 0.5) {
-    col += exp(-minDist * 5.0) * 0.3;
+    float glowAmount = exp(-minDist * 5.0) * glowIntensity;
+    col += glowAmount;
 }
 
 if (pulse > 0.5) col *= 0.7 + 0.3 * sin(timeVal * 3.0);
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1740,84 +3084,191 @@ let fractalCirclesCode = """
 // @toggle colorShift "Color Shift" default(false)
 
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 pos = uv - center;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = pixelSize / 100.0;
+    pos = floor(pos / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float ka = atan2(pos.y, pos.x);
+    ka = fmod(ka, 0.523) - 0.262;
+    pos = float2(cos(ka), sin(ka)) * length(pos);
+}
+
+// Rotation
+float co = cos(rotation + morphSpeed * sin(timeVal));
+float si = sin(rotation + morphSpeed * sin(timeVal));
+pos = float2(pos.x * co - pos.y * si, pos.x * si + pos.y * co);
+
+float2 p = pos * 2.0 * zoom;
 if (mirror > 0.5) p = abs(p);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
+// Wave distortion
+if (waveAmplitude > 0.0) {
+    p += sin(p * waveFrequency + timeVal) * waveAmplitude * 0.1;
+}
+
+// Distortion
+if (distortAmount > 0.0) {
+    p += sin(p * 5.0 + timeVal) * distortAmount * 0.1;
+}
 
 float3 col = float3(0.0);
 int numCircles = int(circleCount);
+int numLayers = int(layers);
 
-for (int i = 0; i < 15; i++) {
-    if (i >= numCircles) break;
-    float fi = float(i);
-    float r = baseRadius / (fi + 1.0);
+for (int layer = 0; layer < 5; layer++) {
+    if (layer >= numLayers) break;
+    float layerOffset = float(layer) * 0.1;
     
-    float2 offset;
-    if (spiral > 0.5) {
-        float angle = fi * 0.7 + timeVal * speed;
-        float dist = fi * 0.05 * movementRange;
-        offset = float2(cos(angle), sin(angle)) * dist;
-    } else if (orbit > 0.5) {
-        float angle = timeVal * speed + fi * 1.0;
-        offset = float2(cos(angle), sin(angle)) * movementRange * 0.5;
-    } else if (random > 0.5) {
-        float seed = fi * 123.456;
-        offset = float2(
-            sin(timeVal * speed + seed) * sin(seed * 2.0),
-            cos(timeVal * speed * 0.7 + seed) * cos(seed * 3.0)
-        ) * movementRange;
-    } else {
-        offset = float2(sin(timeVal * speed + fi), cos(timeVal * speed * 0.7 + fi)) * movementRange;
-    }
-    
-    float rAnim = r;
-    if (pulse > 0.5) {
-        rAnim *= 0.8 + 0.2 * sin(timeVal * 3.0 + fi);
-    }
-    
-    float d = length(p - offset);
-    float circle;
-    
-    if (filled > 0.5) {
-        circle = smoothstep(rAnim, rAnim - thickness, d);
-    } else if (rings > 0.5) {
-        circle = smoothstep(rAnim, rAnim - thickness, d) - smoothstep(rAnim - thickness, rAnim - thickness * 2.0, d);
-    } else {
-        circle = smoothstep(thickness, 0.0, abs(d - rAnim));
-    }
-    
-    float3 circleColor;
-    if (colorful > 0.5) {
-        circleColor = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + fi * 0.5 + timeVal * colorSpeed);
-    } else {
-        circleColor = float3(1.0);
-    }
-    
-    if (glow > 0.5) {
-        float glowVal = exp(-d * 3.0) * 0.3;
-        circleColor += glowVal;
-    }
-    
-    if (blend > 0.5) {
-        col += circle * circleColor * overlap;
-    } else {
-        col = mix(col, circleColor, circle);
+    for (int i = 0; i < 15; i++) {
+        if (i >= numCircles) break;
+        float fi = float(i);
+        float r = baseRadius / (fi + 1.0);
+        
+        float2 offset;
+        if (spiral > 0.5) {
+            float angle = fi * 0.7 + timeVal * speed;
+            float dist = fi * 0.05 * movementRange;
+            offset = float2(cos(angle), sin(angle)) * dist;
+        } else if (orbit > 0.5) {
+            float angle = timeVal * orbitSpeed + fi * 1.0;
+            offset = float2(cos(angle), sin(angle)) * orbitRadius;
+        } else if (random > 0.5) {
+            float seed = fi * 123.456;
+            offset = float2(
+                sin(timeVal * speed + seed) * sin(seed * 2.0),
+                cos(timeVal * speed * 0.7 + seed) * cos(seed * 3.0)
+            ) * movementRange;
+        } else {
+            offset = float2(sin(timeVal * speed + fi), cos(timeVal * speed * 0.7 + fi)) * movementRange;
+        }
+        
+        offset += float2(layerOffset);
+        
+        float rAnim = r;
+        if (pulse > 0.5) {
+            rAnim *= 0.8 + 0.2 * sin(timeVal * 3.0 + fi);
+        }
+        
+        float d = length(p - offset);
+        float circle;
+        
+        if (filled > 0.5) {
+            circle = smoothstep(rAnim, rAnim - thickness, d);
+        } else if (rings > 0.5) {
+            circle = smoothstep(rAnim, rAnim - thickness, d) - smoothstep(rAnim - thickness, rAnim - thickness * 2.0, d);
+        } else {
+            circle = smoothstep(thickness, 0.0, abs(d - rAnim));
+        }
+        
+        float3 circleColor;
+        if (colorful > 0.5) {
+            circleColor = 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + fi * 0.5 + timeVal * colorSpeed + float(layer));
+        } else {
+            circleColor = float3(1.0);
+        }
+        
+        // Glow effect
+        if (glow > 0.5) {
+            float glowVal = exp(-d * 3.0) * glowIntensity;
+            circleColor += glowVal;
+        }
+        
+        if (blend > 0.5) {
+            col += circle * circleColor * overlap / float(numLayers);
+        } else {
+            col = mix(col, circleColor, circle);
+        }
     }
 }
 
+// Color shift
+if (colorShift > 0.5) {
+    col = col.gbr;
+}
+
+// Color balance
+col.r += colorBalance * 0.1;
+col.b -= colorBalance * 0.1;
+
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float angle = hueShift * 6.28;
+    float3x3 hueMatrix = float3x3(
+        0.213 + cos(angle) * 0.787 - sin(angle) * 0.213,
+        0.715 - cos(angle) * 0.715 - sin(angle) * 0.715,
+        0.072 - cos(angle) * 0.072 + sin(angle) * 0.928,
+        0.213 - cos(angle) * 0.213 + sin(angle) * 0.143,
+        0.715 + cos(angle) * 0.285 + sin(angle) * 0.140,
+        0.072 - cos(angle) * 0.072 - sin(angle) * 0.283,
+        0.213 - cos(angle) * 0.213 - sin(angle) * 0.787,
+        0.715 - cos(angle) * 0.715 + sin(angle) * 0.715,
+        0.072 + cos(angle) * 0.928 + sin(angle) * 0.072
+    );
+    col = col * hueMatrix;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    float offset = chromaticAmount + 0.02;
+    col.r = col.r * (1.0 + offset);
+    col.b = col.b * (1.0 - offset);
+}
+
+// Neon effect
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
+
 if (invert > 0.5) col = 1.0 - col;
 
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
+// Noise
 if (noise > 0.5) {
     float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
+    col += (n - 0.5) * noiseAmount;
 }
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+
+// Scanlines
+if (scanlines > 0.5) {
+    float scanline = 0.9 + 0.1 * sin(uv.y * 400.0 * scanlineIntensity);
+    col *= scanline;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luma = dot(col, float3(0.299, 0.587, 0.114));
+    float bloomMask = smoothstep(bloomThreshold, 1.0, luma);
+    col += col * bloomMask * bloomIntensity;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Vignette
+if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize;
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float edge = smoothstep(0.0, edgeFade, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    col *= edge;
+}
+
+// Gamma correction
+col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
@@ -1879,15 +3330,34 @@ let infiniteCubesCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
+float2 pos = uv;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pSize = max(pixelSize, 1.0);
+    pos = floor(pos * 100.0 / pSize) * pSize / 100.0;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float angle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    angle = fmod(angle, 6.28318 / segments);
+    angle = abs(angle - 3.14159 / segments);
+    float r = length(kp);
+    pos = float2(cos(angle), sin(angle)) * r + 0.5;
+}
+
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 p = (pos - center) * 2.0 * zoom;
 if (mirror > 0.5) p = abs(p);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
-float z = mod(timeVal * speed, 1.0);
+float z = fmod(timeVal * speed, 1.0);
 
 float rotAngle = rotation;
-if (rotating > 0.5) rotAngle += timeVal * 0.5;
+if (rotating > 0.5) rotAngle += timeVal * rotationSpeed;
 float c = cos(rotAngle);
 float s = sin(rotAngle);
 p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
@@ -1899,9 +3369,9 @@ for (int i = 0; i < 20; i++) {
     if (i >= numCubes) break;
     float fi = float(i);
     float depthVal = (fi + z) * depth;
-    float size = 1.0 / depthVal;
+    float dsize = 1.0 / depthVal;
     
-    float sizeAnim = size;
+    float sizeAnim = dsize;
     if (pulse > 0.5) {
         sizeAnim *= 0.9 + 0.1 * sin(timeVal * 3.0 + fi);
     }
@@ -1942,7 +3412,7 @@ for (int i = 0; i < 20; i++) {
     }
     
     if (glow > 0.5) {
-        float glowVal = exp(-abs(d) * sizeAnim * 10.0) * 0.2;
+        float glowVal = exp(-abs(d) * sizeAnim * 10.0) * glowIntensity;
         cubeColor += glowVal;
     }
     
@@ -1955,13 +3425,80 @@ if (invert > 0.5) col = 1.0 - col;
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
-}
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Color shift
+if (colorShift > 0.5) col = col.gbr;
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float hAngle = hueShift * 6.28318;
+    float hCos = cos(hAngle);
+    float hSin = sin(hAngle);
+    float3x3 hueMatrix = float3x3(
+        0.299 + 0.701 * hCos - 0.300 * hSin,
+        0.587 - 0.587 * hCos - 0.588 * hSin,
+        0.114 - 0.114 * hCos + 0.886 * hSin,
+        0.299 - 0.299 * hCos + 0.143 * hSin,
+        0.587 + 0.413 * hCos + 0.140 * hSin,
+        0.114 - 0.114 * hCos - 0.283 * hSin,
+        0.299 - 0.299 * hCos - 0.701 * hSin,
+        0.587 - 0.587 * hCos + 0.588 * hSin,
+        0.114 + 0.886 * hCos + 0.114 * hSin
+    );
+    col = hueMatrix * col;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.0) {
+    float2 dir = pos - 0.5;
+    col.r = col.r + chromaticAmount * length(dir);
+    col.b = col.b - chromaticAmount * length(dir);
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (luminance - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * noiseAmount * 0.3;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(pos * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount;
+}
+
+// Scanlines effect
+if (scanlines > 0.5) {
+    float scanline = sin(pos.y * 400.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.3 * scanline;
+}
+
+// Vignette effect
+if (vignette > 0.5) {
+    float vig = length(pos - 0.5) * vignetteSize * 2.0;
+    col *= 1.0 - vig * 0.5;
+}
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float2 edgeDist = min(pos, 1.0 - pos);
+    float ef = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= ef;
+}
+
+// Gamma correction
+col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
 """
@@ -2023,11 +3560,30 @@ let rotatingTrianglesCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
+float2 pos = uv;
+float timeVal = animated > 0.5 ? iTime : 0.0;
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pSize = max(pixelSize, 1.0);
+    pos = floor(pos * 100.0 / pSize) * pSize / 100.0;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float kAngle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    kAngle = fmod(kAngle, 6.28318 / segments);
+    kAngle = abs(kAngle - 3.14159 / segments);
+    float r = length(kp);
+    pos = float2(cos(kAngle), sin(kAngle)) * r + 0.5;
+}
+
 float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
+float2 p = (pos - center) * 2.0 * zoom;
 if (mirror > 0.5) p = abs(p);
 
-float timeVal = animated > 0.5 ? iTime : 0.0;
 float angle = timeVal * speed + phaseOffset;
 
 float c = cos(angle);
@@ -2036,7 +3592,7 @@ p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
 
 float3 col = float3(0.0);
 
-int sides = 3;
+int sides = int(sideCount);
 if (squares > 0.5) sides = 4;
 if (pentagons > 0.5) sides = 5;
 if (hexagons > 0.5) sides = 6;
@@ -2048,9 +3604,9 @@ for (int i = 0; i < 8; i++) {
     if (i >= numTriangles) break;
     float fi = float(i);
     
-    float layerAngle = fi * sideAngle + timeVal * speed;
+    float layerAngle = fi * sideAngle + timeVal * rotationSpeed;
     if (counterRotate > 0.5 && i % 2 == 1) {
-        layerAngle = -fi * sideAngle - timeVal * speed;
+        layerAngle = -fi * sideAngle - timeVal * rotationSpeed;
     }
     
     float layerSize = size;
@@ -2061,6 +3617,11 @@ for (int i = 0; i < 8; i++) {
     
     if (pulse > 0.5) {
         layerSize *= 0.9 + 0.1 * sin(timeVal * 3.0 + fi);
+    }
+    
+    // Wave distortion
+    if (waveAmplitude > 0.0) {
+        layerSize += sin(fi * waveFrequency + timeVal) * waveAmplitude * 0.1;
     }
     
     float2 dir = float2(cos(layerAngle), sin(layerAngle));
@@ -2081,7 +3642,7 @@ for (int i = 0; i < 8; i++) {
     }
     
     if (glow > 0.5) {
-        float glowVal = exp(-abs(d - layerSize) * 20.0) * 0.3;
+        float glowVal = exp(-abs(d - layerSize) * 20.0) * glowIntensity;
         triColor += glowVal;
     }
     
@@ -2094,13 +3655,80 @@ if (invert > 0.5) col = 1.0 - col;
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
-}
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Color shift
+if (colorShift > 0.5) col = col.gbr;
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float hAngle = hueShift * 6.28318;
+    float hCos = cos(hAngle);
+    float hSin = sin(hAngle);
+    float3x3 hueMatrix = float3x3(
+        0.299 + 0.701 * hCos - 0.300 * hSin,
+        0.587 - 0.587 * hCos - 0.588 * hSin,
+        0.114 - 0.114 * hCos + 0.886 * hSin,
+        0.299 - 0.299 * hCos + 0.143 * hSin,
+        0.587 + 0.413 * hCos + 0.140 * hSin,
+        0.114 - 0.114 * hCos - 0.283 * hSin,
+        0.299 - 0.299 * hCos - 0.701 * hSin,
+        0.587 - 0.587 * hCos + 0.588 * hSin,
+        0.114 + 0.886 * hCos + 0.114 * hSin
+    );
+    col = hueMatrix * col;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.0) {
+    float2 dir = pos - 0.5;
+    col.r = col.r + chromaticAmount * length(dir);
+    col.b = col.b - chromaticAmount * length(dir);
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (luminance - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * noiseAmount * 0.3;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(pos * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount;
+}
+
+// Scanlines effect
+if (scanlines > 0.5) {
+    float scanline = sin(pos.y * 400.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.3 * scanline;
+}
+
+// Vignette effect
+if (vignette > 0.5) {
+    float vig = length(pos - 0.5) * vignetteSize * 2.0;
+    col *= 1.0 - vig * 0.5;
+}
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float2 edgeDist = min(pos, 1.0 - pos);
+    float ef = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= ef;
+}
+
+// Gamma correction
+col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
 """
@@ -2164,13 +3792,32 @@ let penroseTilesCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = (uv + float2(offsetX, offsetY)) * scale;
-if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
-
+float2 pos = uv;
 float timeVal = animated > 0.5 ? iTime : 0.0;
 
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pSize = max(pixelSize, 1.0);
+    pos = floor(pos * 100.0 / pSize) * pSize / 100.0;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float kAngle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    kAngle = fmod(kAngle, 6.28318 / segments);
+    kAngle = abs(kAngle - 3.14159 / segments);
+    float r = length(kp);
+    pos = float2(cos(kAngle), sin(kAngle)) * r + 0.5;
+}
+
+float2 center = float2(centerX, centerY);
+float2 p = (pos - center + float2(offsetX, offsetY)) * scale * zoom;
+if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
+
 if (rotation > 0.5) {
-    float angle = timeVal * 0.2;
+    float angle = timeVal * rotationSpeed;
     float c = cos(angle);
     float s = sin(angle);
     p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
@@ -2192,7 +3839,7 @@ for (int i = 0; i < 10; i++) {
     float d = dot(p, dir);
     
     if (wave > 0.5) {
-        d += sin(timeVal * 2.0 + fi) * 0.2;
+        d += sin(timeVal * 2.0 + fi) * waveAmplitude;
     }
     
     float grid = abs(fract(d) - 0.5);
@@ -2210,7 +3857,7 @@ for (int i = 0; i < 10; i++) {
     }
     
     if (glow > 0.5) {
-        float glowVal = exp(-grid * 10.0) * 0.2;
+        float glowVal = exp(-grid * 10.0) * glowIntensity;
         lineColor += glowVal;
     }
     
@@ -2218,7 +3865,7 @@ for (int i = 0; i < 10; i++) {
 }
 
 if (gradient > 0.5) {
-    col *= mix(float3(0.6, 0.8, 1.0), float3(1.0, 0.8, 0.6), uv.y);
+    col *= mix(float3(0.6, 0.8, 1.0), float3(1.0, 0.8, 0.6), pos.y);
 }
 
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
@@ -2227,13 +3874,80 @@ if (invert > 0.5) col = 1.0 - col;
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
-}
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Color shift
+if (colorShift > 0.5) col = col.gbr;
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float hAngle = hueShift * 6.28318;
+    float hCos = cos(hAngle);
+    float hSin = sin(hAngle);
+    float3x3 hueMatrix = float3x3(
+        0.299 + 0.701 * hCos - 0.300 * hSin,
+        0.587 - 0.587 * hCos - 0.588 * hSin,
+        0.114 - 0.114 * hCos + 0.886 * hSin,
+        0.299 - 0.299 * hCos + 0.143 * hSin,
+        0.587 + 0.413 * hCos + 0.140 * hSin,
+        0.114 - 0.114 * hCos - 0.283 * hSin,
+        0.299 - 0.299 * hCos - 0.701 * hSin,
+        0.587 - 0.587 * hCos + 0.588 * hSin,
+        0.114 + 0.886 * hCos + 0.114 * hSin
+    );
+    col = hueMatrix * col;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.0) {
+    float2 dir = pos - 0.5;
+    col.r = col.r + chromaticAmount * length(dir);
+    col.b = col.b - chromaticAmount * length(dir);
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (luminance - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * noiseAmount * 0.3;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(pos * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount;
+}
+
+// Scanlines effect
+if (scanlines > 0.5) {
+    float scanline = sin(pos.y * 400.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.3 * scanline;
+}
+
+// Vignette effect
+if (vignette > 0.5) {
+    float vig = length(pos - 0.5) * vignetteSize * 2.0;
+    col *= 1.0 - vig * 0.5;
+}
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float2 edgeDist = min(pos, 1.0 - pos);
+    float ef = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= ef;
+}
+
+// Gamma correction
+col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
 """
@@ -2298,20 +4012,36 @@ let truchetPatternCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 p = (uv + float2(offsetX, offsetY)) * scale;
-if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
-
+float2 pos = uv;
 float timeVal = animated > 0.5 ? iTime : 0.0;
 
-if (rotating > 0.5) {
-    float angle = timeVal * 0.3;
-    float2 center = float2(scale * 0.5);
-    p -= center;
-    float c = cos(angle);
-    float s = sin(angle);
-    p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
-    p += center;
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pSize = max(pixelSize, 1.0);
+    pos = floor(pos * 100.0 / pSize) * pSize / 100.0;
 }
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float kAngle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    kAngle = fmod(kAngle, 6.28318 / segments);
+    kAngle = abs(kAngle - 3.14159 / segments);
+    float r = length(kp);
+    pos = float2(cos(kAngle), sin(kAngle)) * r + 0.5;
+}
+
+float2 center = float2(centerX, centerY);
+float2 p = (pos - center + float2(offsetX, offsetY)) * scale * zoom;
+if (mirror > 0.5) p.x = abs(p.x - scale * 0.5) + scale * 0.5;
+
+// Rotation transform
+float rotAngle = rotation;
+if (rotating > 0.5) rotAngle += timeVal * rotationSpeed;
+float c = cos(rotAngle);
+float s = sin(rotAngle);
+p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
 
 float2 id = floor(p);
 float2 f = fract(p) - 0.5;
@@ -2340,7 +4070,7 @@ if (arcs > 0.5) {
         d = abs(abs(f.x) + abs(f.y) - 0.5);
     }
 } else if (weave > 0.5) {
-    float wave = sin((f.x + f.y) * 6.28 + timeVal * speed) * 0.1;
+    float wave = sin((f.x + f.y) * waveFrequency + timeVal * speed) * waveAmplitude;
     d = abs(abs(f.x) + abs(f.y) - 0.5 + wave);
 } else {
     d = abs(abs(f.x) + abs(f.y) - 0.5);
@@ -2366,14 +4096,14 @@ if (colorful > 0.5) {
 }
 
 if (glow > 0.5) {
-    float glowVal = exp(-d * 3.0) * 0.3;
+    float glowVal = exp(-d * 3.0) * glowIntensity;
     lineColor += glowVal;
 }
 
 col = mix(col, lineColor, d);
 
 if (gradient > 0.5) {
-    col *= mix(float3(0.6, 0.8, 1.0), float3(1.0, 0.8, 0.6), uv.y);
+    col *= mix(float3(0.6, 0.8, 1.0), float3(1.0, 0.8, 0.6), pos.y);
 }
 
 if (neon > 0.5) col = pow(col, float3(0.6)) * 1.4;
@@ -2382,13 +4112,80 @@ if (invert > 0.5) col = 1.0 - col;
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
-}
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Color shift
+if (colorShift > 0.5) col = col.gbr;
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float hAngle = hueShift * 6.28318;
+    float hCos = cos(hAngle);
+    float hSin = sin(hAngle);
+    float3x3 hueMatrix = float3x3(
+        0.299 + 0.701 * hCos - 0.300 * hSin,
+        0.587 - 0.587 * hCos - 0.588 * hSin,
+        0.114 - 0.114 * hCos + 0.886 * hSin,
+        0.299 - 0.299 * hCos + 0.143 * hSin,
+        0.587 + 0.413 * hCos + 0.140 * hSin,
+        0.114 - 0.114 * hCos - 0.283 * hSin,
+        0.299 - 0.299 * hCos - 0.701 * hSin,
+        0.587 - 0.587 * hCos + 0.588 * hSin,
+        0.114 + 0.886 * hCos + 0.114 * hSin
+    );
+    col = hueMatrix * col;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.0) {
+    float2 dir = pos - 0.5;
+    col.r = col.r + chromaticAmount * length(dir);
+    col.b = col.b - chromaticAmount * length(dir);
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (luminance - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * noiseAmount * 0.3;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(pos * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount;
+}
+
+// Scanlines effect
+if (scanlines > 0.5) {
+    float scanline = sin(pos.y * 400.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.3 * scanline;
+}
+
+// Vignette effect
+if (vignette > 0.5) {
+    float vig = length(pos - 0.5) * vignetteSize * 2.0;
+    col *= 1.0 - vig * 0.5;
+}
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float2 edgeDist = min(pos, 1.0 - pos);
+    float ef = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= ef;
+}
+
+// Gamma correction
+col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
 """
@@ -2450,18 +4247,36 @@ let sacredGeometryCode = """
 // @toggle kaleidoscope "Kaleidoscope" default(false)
 // @toggle colorShift "Color Shift" default(false)
 
-float2 center = float2(centerX, centerY);
-float2 p = (uv - center) * 2.0 * zoom;
-if (mirror > 0.5) p = abs(p);
-
+float2 pos = uv;
 float timeVal = animated > 0.5 ? iTime : 0.0;
 
-if (rotating > 0.5) {
-    float angle = timeVal * 0.5;
-    float c = cos(angle);
-    float s = sin(angle);
-    p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pSize = max(pixelSize, 1.0);
+    pos = floor(pos * 100.0 / pSize) * pSize / 100.0;
 }
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float2 kp = pos - 0.5;
+    float kAngle = atan2(kp.y, kp.x);
+    float segments = 6.0;
+    kAngle = fmod(kAngle, 6.28318 / segments);
+    kAngle = abs(kAngle - 3.14159 / segments);
+    float r = length(kp);
+    pos = float2(cos(kAngle), sin(kAngle)) * r + 0.5;
+}
+
+float2 center = float2(centerX, centerY);
+float2 p = (pos - center) * 2.0 * zoom;
+if (mirror > 0.5) p = abs(p);
+
+// Rotation
+float rotAngle = rotation;
+if (rotating > 0.5) rotAngle += timeVal * rotationSpeed;
+float c = cos(rotAngle);
+float s = sin(rotAngle);
+p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
 
 float3 col = float3(0.0);
 
@@ -2477,6 +4292,11 @@ for (int i = 0; i < 12; i++) {
     
     if (pulse > 0.5) {
         radiusAnim *= 0.9 + 0.1 * sin(timeVal * 3.0 + fi);
+    }
+    
+    // Wave distortion
+    if (waveAmplitude > 0.0) {
+        radiusAnim += sin(fi * waveFrequency + timeVal) * waveAmplitude * 0.1;
     }
     
     float circle;
@@ -2542,11 +4362,11 @@ if (sriYantra > 0.5) {
 }
 
 if (glow > 0.5) {
-    col += exp(-centerD * 2.0) * 0.3;
+    col += exp(-centerD * 2.0) * glowIntensity;
 }
 
 if (gradient > 0.5) {
-    col *= mix(float3(0.7, 0.8, 1.0), float3(1.0, 0.9, 0.7), uv.y);
+    col *= mix(float3(0.7, 0.8, 1.0), float3(1.0, 0.9, 0.7), pos.y);
 }
 
 col *= 0.5 + 0.5 * cos(float3(0.0, 2.0, 4.0) + timeVal);
@@ -2557,13 +4377,81 @@ if (invert > 0.5) col = 1.0 - col;
 col = (col - 0.5) * contrast + 0.5;
 col *= brightness;
 
-if (noise > 0.5) {
-    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * 0.08;
-}
-if (scanlines > 0.5) col *= 0.9 + 0.1 * sin(uv.y * 400.0);
-if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * 0.5;
+// Color shift
+if (colorShift > 0.5) col = col.gbr;
 
+// Saturation adjustment
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, saturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float hAngle = hueShift * 6.28318;
+    float hCos = cos(hAngle);
+    float hSin = sin(hAngle);
+    float3x3 hueMatrix = float3x3(
+        0.299 + 0.701 * hCos - 0.300 * hSin,
+        0.587 - 0.587 * hCos - 0.588 * hSin,
+        0.114 - 0.114 * hCos + 0.886 * hSin,
+        0.299 - 0.299 * hCos + 0.143 * hSin,
+        0.587 + 0.413 * hCos + 0.140 * hSin,
+        0.114 - 0.114 * hCos - 0.283 * hSin,
+        0.299 - 0.299 * hCos - 0.701 * hSin,
+        0.587 - 0.587 * hCos + 0.588 * hSin,
+        0.114 + 0.886 * hCos + 0.114 * hSin
+    );
+    col = hueMatrix * col;
+}
+
+// Chromatic aberration
+if (chromatic > 0.5 && chromaticAmount > 0.0) {
+    float2 dir = pos - 0.5;
+    col.r = col.r + chromaticAmount * length(dir);
+    col.b = col.b - chromaticAmount * length(dir);
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float luminance = dot(col, float3(0.299, 0.587, 0.114));
+    if (luminance > bloomThreshold) {
+        col += (luminance - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(pos * 200.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * noiseAmount * 0.3;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(pos * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount;
+}
+
+// Scanlines effect
+if (scanlines > 0.5) {
+    float scanline = sin(pos.y * 400.0) * 0.5 + 0.5;
+    col *= 1.0 - scanlineIntensity * 0.3 * scanline;
+}
+
+// Vignette effect
+if (vignette > 0.5) {
+    float vig = length(pos - 0.5) * vignetteSize * 2.0;
+    col *= 1.0 - vig * 0.5;
+}
+
+// Edge fade
+if (edgeFade > 0.0) {
+    float2 edgeDist = min(pos, 1.0 - pos);
+    float ef = smoothstep(0.0, edgeFade * 0.3, min(edgeDist.x, edgeDist.y));
+    col *= ef;
+}
+
+// Gamma correction
+col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
 return float4(col, 1.0);
 """
+
