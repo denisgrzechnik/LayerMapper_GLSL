@@ -36,6 +36,9 @@ struct ShaderParametersView: View {
     // Control panel selection
     @State private var selectedControlPanel: ControlPanelType = .grid
     
+    // Slider page selection (1, 2, 3) - each page shows up to 12 sliders
+    @State private var selectedSliderPage: Int = 0
+    
     enum ControlPanelType: String, CaseIterable {
         case grid = "Grid"
         case pad = "Pad"
@@ -274,11 +277,23 @@ struct ShaderParametersView: View {
     
     private var slidersPanel: some View {
         VStack(spacing: 0) {
-            // Header with Record and Close buttons
+            // Header with Page buttons, Record and Close buttons
             HStack(spacing: 8) {
-                Text("GLSL")
-                    .font(.caption.bold())
-                    .foregroundColor(.gray)
+                // Page selection buttons (1, 2, 3)
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { page in
+                        Button {
+                            selectedSliderPage = page
+                        } label: {
+                            Text("\(page + 1)")
+                                .font(.caption.bold())
+                                .foregroundColor(selectedSliderPage == page ? .white : .gray)
+                                .frame(width: 24, height: 24)
+                                .background(selectedSliderPage == page ? Color(red: 254/255, green: 20/255, blue: 77/255) : Color(white: 0.2))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                    }
+                }
                 
                 Spacer()
                 
@@ -320,21 +335,31 @@ struct ShaderParametersView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             
-            // Sliders
+            // Sliders - paginated, 12 per page
             ScrollView {
                 VStack(spacing: 2) {
                     let sliderParams = parametersVM.parameters.filter { $0.type == .slider }
+                    let startIndex = selectedSliderPage * 12
                     
                     if sliderParams.isEmpty {
                         Text("No slider parameters")
                             .font(.caption)
                             .foregroundColor(.gray)
                             .padding()
+                    } else if startIndex >= sliderParams.count {
+                        Text("No parameters on this page")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding()
                     } else {
-                        ForEach(Array(sliderParams.enumerated()), id: \.element.id) { index, param in
+                        let endIndex = min(startIndex + 12, sliderParams.count)
+                        let pageParams = Array(sliderParams[startIndex..<endIndex])
+                        
+                        ForEach(Array(pageParams.enumerated()), id: \.element.id) { localIndex, param in
+                            let globalIndex = startIndex + localIndex
                             StyledSliderRow(
                                 parameter: param,  // Przekaż wartość, NIE binding!
-                                color: sliderColor(for: index),
+                                color: sliderColor(for: globalIndex),
                                 onValueChanged: { name, value in
                                     // Aktualizuj ViewModel bezpośrednio - BEZ przebudowy widoku!
                                     parametersVM.updateParameter(id: param.id, value: value)
@@ -1590,6 +1615,17 @@ struct AutomationPresetCell: View {
                 onLongPressSave()
             }
         }
+    }
+}
+
+// MARK: - Array Safe Range Extension
+
+extension Array {
+    subscript(safe range: Range<Int>) -> ArraySlice<Element> {
+        let safeStart = Swift.max(0, range.lowerBound)
+        let safeEnd = Swift.min(count, range.upperBound)
+        guard safeStart < safeEnd else { return [] }
+        return self[safeStart..<safeEnd]
     }
 }
 
