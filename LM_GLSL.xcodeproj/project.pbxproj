@@ -27,6 +27,7 @@
 		0A000023291F0001000A0018 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A000024291F0001000A0018 /* Assets.xcassets */; };
 		5821BDAD2F146F5900E75E1D /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDAB2F146F5900E75E1D /* Logger.swift */; };
 		5821BDB02F146FA100E75E1D /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDAE2F146FA100E75E1D /* StoreManager.swift */; };
+		58RM00012F210001000RM001 /* ResourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58RM00002F210001000RM001 /* ResourceManager.swift */; };
 		5821BDB22F146FBA00E75E1D /* PurchaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5821BDB12F146FBA00E75E1D /* PurchaseView.swift */; };
 		58C556552F04FF4B0094CB27 /* AIShaderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556542F04FF4B0094CB27 /* AIShaderService.swift */; };
 		58C556572F050DF90094CB27 /* ShaderCodes_Parametric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C556562F050DF80094CB27 /* ShaderCodes_Parametric.swift */; };
@@ -70,6 +71,7 @@
 		0A000024291F0001000A0018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5821BDAB2F146F5900E75E1D /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		5821BDAE2F146FA100E75E1D /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		58RM00002F210001000RM001 /* ResourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourceManager.swift; sourceTree = "<group>"; };
 		5821BDB12F146FBA00E75E1D /* PurchaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseView.swift; sourceTree = "<group>"; };
 		5821BDB32F1481FE00E75E1D /* LM_GLSL.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = LM_GLSL.storekit; sourceTree = "<group>"; };
 		58C556542F04FF4B0094CB27 /* AIShaderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIShaderService.swift; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 			isa = PBXGroup;
 			children = (
 				5821BDAE2F146FA100E75E1D /* StoreManager.swift */,
+				58RM00002F210001000RM001 /* ResourceManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -316,6 +319,7 @@
 				0A000013291F0001000A0010 /* ShaderDataManager.swift in Sources */,
 				58C562172F129DD80094CB27 /* FolderCategoryPanel.swift in Sources */,
 				5821BDB02F146FA100E75E1D /* StoreManager.swift in Sources */,
+				58RM00012F210001000RM001 /* ResourceManager.swift in Sources */,
 				58C556592F050E200094CB27 /* ShaderParameter.swift in Sources */,
 				58C562132F129D570094CB27 /* ShaderFolder.swift in Sources */,
 				0A000015291F0001000A0011 /* BuiltInShaderLoader.swift in Sources */,

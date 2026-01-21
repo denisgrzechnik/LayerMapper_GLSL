@@ -499,9 +499,36 @@ struct MetalShaderView: UIViewRepresentable {
         var parameterNames: [String] = []
         var parameterDefaults: [String: Float] = [:]
         
+        // Obserwator notyfikacji czyszczenia
+        private var clearObserver: NSObjectProtocol?
+        
         init(_ parent: MetalShaderView) {
             self.parent = parent
             super.init()
+            
+            // Nasłuchuj na notyfikację czyszczenia
+            clearObserver = NotificationCenter.default.addObserver(
+                forName: ResourceManager.clearThumbnailsNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.clearResources()
+            }
+        }
+        
+        deinit {
+            // Usuń obserwatora - NIE używaj weak self w deinit!
+            if let observer = clearObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+        
+        /// Czyści zasoby GPU tego koordynatora
+        func clearResources() {
+            pipelineState = nil
+            commandQueue = nil
+            parameterNames = []
+            parameterDefaults = [:]
         }
         
         func setupMetal(device: MTLDevice, shaderCode: String) {

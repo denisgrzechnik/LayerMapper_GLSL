@@ -150,7 +150,9 @@ struct ContentView: View {
                                 showingParametersView: $showingParametersView,
                                 selectedShader: selectedShader,
                                 syncService: syncService,
-                                showingCommunityShaders: $showingCommunityShaders
+                                showingCommunityShaders: $showingCommunityShaders,
+                                automationManager: automationManager,
+                                parametersVM: parametersVM
                             )
                             .frame(width: geometry.size.width * 0.2)
                         }
@@ -203,7 +205,9 @@ struct ContentView: View {
                                 showingParametersView: $showingParametersView,
                                 selectedShader: selectedShader,
                                 syncService: syncService,
-                                showingCommunityShaders: $showingCommunityShaders
+                                showingCommunityShaders: $showingCommunityShaders,
+                                automationManager: automationManager,
+                                parametersVM: parametersVM
                             )
                             .frame(height: currentPanelHeight)
                         }
@@ -290,6 +294,8 @@ struct ContentView: View {
         .onChange(of: syncService.isAdvertising) { oldValue, newValue in
             // When broadcasting starts, also start parameter streaming
             if newValue {
+                // Resume timer if it was paused
+                ResourceManager.shared.resumeParameterTimer()
                 broadcastCurrentShader()  // Broadcast current shader first
                 syncService.startParameterStreaming()
             } else {
@@ -297,6 +303,9 @@ struct ContentView: View {
             }
         }
         .onReceive(parameterSyncTimer) { _ in
+            // Skip if timer is paused by ResourceManager
+            guard ResourceManager.shared.isParameterTimerActive else { return }
+            
             // Continuously update parameters in syncService regardless of view mode
             guard syncService.isAdvertising, syncService.isConnected else { return }
             
@@ -372,11 +381,16 @@ struct ContentView: View {
             }
         }
         
-        // Load and play automation from shader data
-        automationManager.loadAndPlay(from: shader.automationData)
-        
-        // Load automation presets for this shader
-        automationManager.importPresetsFromData(shader.automationPresetsData)
+        // Load and play automation from shader data - TYLKO jeśli nie jest zablokowane
+        if !ResourceManager.shared.isAutomationBlocked {
+            automationManager.loadAndPlay(from: shader.automationData)
+            
+            // Load automation presets for this shader
+            automationManager.importPresetsFromData(shader.automationPresetsData)
+        } else {
+            // Jeśli zablokowane - wyczyść bieżącą automatyzację
+            automationManager.clearAllTracks()
+        }
         
         // Setup automation callback to update parameters during playback
         automationManager.onParameterUpdate = { [weak parametersVM] name, value in

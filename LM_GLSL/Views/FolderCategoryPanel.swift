@@ -27,6 +27,12 @@ struct FolderCategoryPanel: View {
     // Community shaders mode
     @Binding var showingCommunityShaders: Bool
     
+    // Automation manager for release resources button
+    var automationManager: ParameterAutomationManager?
+    
+    // Parameters VM for resetting to defaults
+    var parametersVM: ShaderParametersViewModel?
+    
     @State private var selectedTab: PanelTab = .folder
     @State private var showingNewFolderSheet: Bool = false
     @State private var newFolderName: String = ""
@@ -272,10 +278,11 @@ struct FolderCategoryPanel: View {
                     }
                 }
                 
-                // Empty slots
-                ForEach(0..<2, id: \.self) { _ in
-                    emptySlotButton
-                }
+                // Release Resources button - wyłącza automatyzacje i broadcast
+                releaseResourcesButton
+                
+                // Empty slot (1 remaining)
+                emptySlotButton
             }
         }
     }
@@ -383,6 +390,65 @@ struct FolderCategoryPanel: View {
                     .stroke(Color(white: 0.2), lineWidth: 1)
             )
             .cornerRadius(6)
+    }
+    
+    // MARK: - Release Resources Button
+    
+    /// Sprawdza czy są aktywne zasoby do zwolnienia (lub automatyzacja nie jest zablokowana)
+    private var hasActiveResources: Bool {
+        // Jeśli automatyzacja jest zablokowana, przycisk jest nieaktywny (już zwolniono)
+        if ResourceManager.shared.isAutomationBlocked {
+            return false
+        }
+        
+        let hasAutomation = automationManager?.isPlaying == true || automationManager?.hasAnyRecording == true
+        let hasCachedPipelines = ResourceManager.shared.cachedPipelineCount > 0
+        return hasAutomation || hasCachedPipelines
+    }
+    
+    private var releaseResourcesButton: some View {
+        Button(action: releaseResources) {
+            ZStack {
+                Rectangle()
+                    .fill(hasActiveResources ? Color.orange.opacity(0.3) : Color(white: 0.1))
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(hasActiveResources ? Color.orange : Color(white: 0.2), lineWidth: hasActiveResources ? 2 : 1)
+                    )
+                    .cornerRadius(6)
+                
+                VStack(spacing: 2) {
+                    Image(systemName: hasActiveResources ? "bolt.slash.fill" : "bolt.slash")
+                        .font(.system(size: 14))
+                        .foregroundColor(hasActiveResources ? .orange : Color(white: 0.4))
+                    
+                    if hasActiveResources {
+                        Text("FREE")
+                            .font(.system(size: 6, weight: .bold))
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Zwalnia zasoby: czyści automatyzacje, cache GPU i resetuje parametry
+    private func releaseResources() {
+        // 1. WYCZYŚĆ automatyzacje (nie tylko zatrzymaj - usuń nagrania)
+        automationManager?.clearAllTracks()
+        
+        // 2. Resetuj parametry do wartości domyślnych
+        parametersVM?.resetToDefaults()
+        
+        // 3. Zwolnij zasoby GPU (pipeline cache, thumbnails, timer)
+        ResourceManager.shared.releaseAllResources()
+        
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        
+        print("🔋 All resources released: automation cleared, GPU cache cleared, parameters reset")
     }
     
     // MARK: - New Folder Sheet
@@ -539,7 +605,9 @@ struct CategoryRowItem: View {
         showingParametersView: .constant(false),
         selectedShader: nil,
         syncService: ShaderSyncService(),
-        showingCommunityShaders: .constant(false)
+        showingCommunityShaders: .constant(false),
+        automationManager: nil,
+        parametersVM: nil
     )
     .modelContainer(for: [ShaderFolder.self], inMemory: true)
 }

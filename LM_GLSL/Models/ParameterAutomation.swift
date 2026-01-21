@@ -109,6 +109,9 @@ class ParameterAutomationManager {
         // Can start recording while playing (overdub)
         guard state == .idle || state == .playing else { return }
         
+        // Odblokuj automatyzację gdy użytkownik ręcznie zaczyna nagrywanie
+        ResourceManager.shared.unblockAutomation()
+        
         let wasPlaying = state == .playing
         
         state = .countdown(3)
@@ -415,6 +418,9 @@ class ParameterAutomationManager {
             print("⚠️ No preset in slot P\(index + 1)")
             return
         }
+        
+        // Odblokuj automatyzację gdy użytkownik ręcznie wczytuje preset
+        ResourceManager.shared.unblockAutomation()
         
         // Zastąp aktualne tracki presetem
         tracks = Dictionary(uniqueKeysWithValues: preset.tracks.map { ($0.parameterName, $0) })
