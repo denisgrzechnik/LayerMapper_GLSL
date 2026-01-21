@@ -271,14 +271,14 @@ struct PortraitBottomPanel: View {
                                 .font(.system(size: 8, weight: .bold))
                         }
                     }
-                    .foregroundColor(showingCommunityShaders ? .white : .purple)
+                    .foregroundColor(showingCommunityShaders ? Color(hex: "#FE144D") : Color(white: 0.4))
                     .frame(maxWidth: .infinity)
                     .frame(height: 36)
-                    .background(showingCommunityShaders ? Color.purple.opacity(0.4) : Color.purple.opacity(0.15))
+                    .background(Color(white: 0.12))
                     .cornerRadius(6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(showingCommunityShaders ? Color.purple : Color.purple.opacity(0.4), lineWidth: showingCommunityShaders ? 1.5 : 0.5)
+                            .stroke(Color(white: 0.2), lineWidth: 0.5)
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -294,14 +294,14 @@ struct PortraitBottomPanel: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundColor(color)
+                .foregroundColor(isActive ? color : Color(white: 0.4))
                 .frame(maxWidth: .infinity)
                 .frame(height: 36)
-                .background(isActive ? color.opacity(0.2) : Color(white: 0.12))
+                .background(Color(white: 0.12))
                 .cornerRadius(6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(isActive ? color : Color(white: 0.2), lineWidth: isActive ? 1.5 : 0.5)
+                        .stroke(Color(white: 0.2), lineWidth: 0.5)
                 )
         }
         .buttonStyle(PlainButtonStyle())

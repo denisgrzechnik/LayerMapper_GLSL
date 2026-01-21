@@ -110,7 +110,7 @@ struct PublishShaderView: View {
                 // Thumbnail placeholder
                 RoundedRectangle(cornerRadius: 8)
                     .fill(LinearGradient(
-                        colors: [.purple, .blue],
+                        colors: [Color(hex: "#FE144D") ?? .red, .blue],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ))

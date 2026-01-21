@@ -537,7 +537,7 @@ struct CommunityShaderItem: View {
                                 .font(.system(size: 8))
                                 .foregroundColor(.white)
                                 .padding(4)
-                                .background(Color.purple.opacity(0.8))
+                                .background(Color(hex: "#FE144D")?.opacity(0.8) ?? Color.red.opacity(0.8))
                                 .cornerRadius(4)
                         }
                         Spacer()
@@ -585,7 +585,7 @@ struct CommunityShaderItem: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 4)
-                .background(Color.purple.opacity(0.6))
+                .background(Color(hex: "#FE144D")?.opacity(0.6) ?? Color.red.opacity(0.6))
                 .cornerRadius(4)
             }
             .buttonStyle(PlainButtonStyle())

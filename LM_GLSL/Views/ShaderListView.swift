@@ -100,11 +100,11 @@ struct ShaderListView: View {
                 }) {
                     ZStack {
                         Rectangle()
-                            .fill(syncService.isAdvertising ? Color.green.opacity(0.3) : Color(white: 0.1))
+                            .fill(Color(white: 0.1))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(syncService.isAdvertising ? Color.green : Color(white: 0.2), lineWidth: syncService.isAdvertising ? 2 : 1)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
                             )
                             .cornerRadius(6)
                         
@@ -153,11 +153,11 @@ struct ShaderListView: View {
                 }) {
                     ZStack {
                         Rectangle()
-                            .fill(viewMode == .grid ? Color.blue.opacity(0.3) : Color(white: 0.1))
+                            .fill(Color(white: 0.1))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(viewMode == .grid ? Color.blue : Color(white: 0.2), lineWidth: viewMode == .grid ? 2 : 1)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
                             )
                             .cornerRadius(6)
                         

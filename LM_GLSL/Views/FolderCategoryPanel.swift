@@ -181,11 +181,11 @@ struct FolderCategoryPanel: View {
                 }) {
                     ZStack {
                         Rectangle()
-                            .fill(syncService.isAdvertising ? Color.green.opacity(0.3) : Color(white: 0.1))
+                            .fill(Color(white: 0.1))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(syncService.isAdvertising ? Color.green : Color(white: 0.2), lineWidth: syncService.isAdvertising ? 2 : 1)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
                             )
                             .cornerRadius(6)
                         
@@ -234,11 +234,11 @@ struct FolderCategoryPanel: View {
                 }) {
                     ZStack {
                         Rectangle()
-                            .fill(Color.blue.opacity(0.3))
+                            .fill(Color(white: 0.1))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.blue, lineWidth: 2)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
                             )
                             .cornerRadius(6)
                         
@@ -256,23 +256,23 @@ struct FolderCategoryPanel: View {
                 }) {
                     ZStack {
                         Rectangle()
-                            .fill(showingCommunityShaders ? Color.purple.opacity(0.4) : Color.purple.opacity(0.2))
+                            .fill(Color(white: 0.1))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(showingCommunityShaders ? Color.purple : Color.purple.opacity(0.6), lineWidth: showingCommunityShaders ? 2 : 1)
+                                    .stroke(Color(white: 0.2), lineWidth: 1)
                             )
                             .cornerRadius(6)
                         
                         VStack(spacing: 2) {
                             Image(systemName: "globe")
                                 .font(.system(size: 14))
-                                .foregroundColor(showingCommunityShaders ? .white : .purple)
+                                .foregroundColor(showingCommunityShaders ? Color(hex: "#FE144D") : Color(white: 0.4))
                             
                             if showingCommunityShaders {
                                 Text("ON")
                                     .font(.system(size: 6, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color(hex: "#FE144D"))
                             }
                         }
                     }

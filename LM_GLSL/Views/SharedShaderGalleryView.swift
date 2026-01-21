@@ -290,7 +290,7 @@ struct SharedShaderCard: View {
                 // Thumbnail placeholder
                 RoundedRectangle(cornerRadius: 8)
                     .fill(LinearGradient(
-                        colors: [.purple, .blue],
+                        colors: [Color(hex: "#FE144D") ?? .red, .blue],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ))
@@ -356,7 +356,7 @@ struct ShaderDetailSheet: View {
                         // Preview placeholder
                         RoundedRectangle(cornerRadius: 12)
                             .fill(LinearGradient(
-                                colors: [.purple, .blue, .cyan],
+                                colors: [Color(hex: "#FE144D") ?? .red, .blue, .cyan],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ))
