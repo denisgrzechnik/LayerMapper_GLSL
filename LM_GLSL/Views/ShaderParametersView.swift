@@ -350,13 +350,11 @@ struct ShaderParametersView: View {
     }
     
     private func sliderColor(for index: Int) -> Color {
+        // Same colors as XY Pads: #FE144D, #00963C, #0076C0
         let colors: [Color] = [
-            Color(red: 0.6, green: 0.6, blue: 0.8),   // Light purple
-            Color(red: 0.5, green: 0.7, blue: 0.6),   // Teal
-            Color(red: 0.4, green: 0.8, blue: 0.8),   // Cyan
-            Color(red: 0.6, green: 0.8, blue: 0.4),   // Lime
-            Color(red: 0.8, green: 0.8, blue: 0.3),   // Yellow
-            Color(red: 0.8, green: 0.5, blue: 0.3),   // Orange
+            Color(red: 254/255, green: 20/255, blue: 77/255),   // #FE144D - Red/Pink
+            Color(red: 0/255, green: 150/255, blue: 60/255),    // #00963C - Green
+            Color(red: 0/255, green: 118/255, blue: 192/255)    // #0076C0 - Blue
         ]
         return colors[index % colors.count]
     }
@@ -530,14 +528,14 @@ struct ShaderParametersView: View {
                 
                 Spacer()
                 
-                // Provider picker (compact)
+                // Provider picker (compact) - Red color matching Modify button #FE144D
                 Picker("", selection: $selectedProvider) {
                     ForEach(AIProvider.allCases) { provider in
                         Text(provider.rawValue).tag(provider)
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(.cyan)
+                .tint(Color(red: 254/255, green: 20/255, blue: 77/255))  // #FE144D
                 
                 // API Key button
                 if selectedProvider.requiresAPIKey {
@@ -732,6 +730,13 @@ struct ButtonGridPanel: View {
     var onToggle: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
+    // Row colors: Red (top), Green (middle), Blue (bottom) - darker versions for active state
+    private let rowColors: [Color] = [
+        Color(red: 180/255, green: 14/255, blue: 55/255),   // Dark Red (Row 1 - top)
+        Color(red: 0/255, green: 100/255, blue: 40/255),    // Dark Green (Row 2 - middle)
+        Color(red: 0/255, green: 80/255, blue: 140/255)     // Dark Blue (Row 3 - bottom)
+    ]
+    
     var body: some View {
         GeometryReader { geometry in
             let toggleParams = parameters.filter { $0.type == .toggle }
@@ -746,13 +751,13 @@ struct ButtonGridPanel: View {
             let row3Height = row12Height * 0.5
             
             VStack(spacing: buttonSpacing) {
-                // Row 1 (buttons 1-8)
+                // Row 1 (buttons 1-8) - Red
                 HStack(spacing: buttonSpacing) {
                     ForEach(0..<8, id: \.self) { index in
                         if index < toggleParams.count {
                             ToggleGridButton(
                                 param: toggleParams[index],
-                                color: gridColor(for: index),
+                                color: rowColors[0],
                                 aspectRatio: nil,
                                 onToggle: { newValue in
                                     onToggle?(toggleParams[index].id, newValue)
@@ -764,7 +769,7 @@ struct ButtonGridPanel: View {
                             GridButton(
                                 label: "BTN \(index + 1)",
                                 isActive: false,
-                                color: gridColor(for: index),
+                                color: rowColors[0],
                                 aspectRatio: nil
                             ) {}
                             .frame(width: buttonWidth, height: row12Height)
@@ -772,13 +777,13 @@ struct ButtonGridPanel: View {
                     }
                 }
                 
-                // Row 2 (buttons 9-16)
+                // Row 2 (buttons 9-16) - Green
                 HStack(spacing: buttonSpacing) {
                     ForEach(8..<16, id: \.self) { index in
                         if index < toggleParams.count {
                             ToggleGridButton(
                                 param: toggleParams[index],
-                                color: gridColor(for: index),
+                                color: rowColors[1],
                                 aspectRatio: nil,
                                 onToggle: { newValue in
                                     onToggle?(toggleParams[index].id, newValue)
@@ -790,7 +795,7 @@ struct ButtonGridPanel: View {
                             GridButton(
                                 label: "BTN \(index + 1)",
                                 isActive: false,
-                                color: gridColor(for: index),
+                                color: rowColors[1],
                                 aspectRatio: nil
                             ) {}
                             .frame(width: buttonWidth, height: row12Height)
@@ -798,13 +803,13 @@ struct ButtonGridPanel: View {
                     }
                 }
                 
-                // Row 3 (buttons 17-24) - 50% height
+                // Row 3 (buttons 17-24) - Blue - 50% height
                 HStack(spacing: buttonSpacing) {
                     ForEach(16..<24, id: \.self) { index in
                         if index < toggleParams.count {
                             ToggleGridButton(
                                 param: toggleParams[index],
-                                color: gridColor(for: index),
+                                color: rowColors[2],
                                 aspectRatio: nil,
                                 onToggle: { newValue in
                                     onToggle?(toggleParams[index].id, newValue)
@@ -816,7 +821,7 @@ struct ButtonGridPanel: View {
                             GridButton(
                                 label: "BTN \(index + 1)",
                                 isActive: false,
-                                color: gridColor(for: index),
+                                color: rowColors[2],
                                 aspectRatio: nil
                             ) {}
                             .frame(width: buttonWidth, height: row3Height)
@@ -828,12 +833,6 @@ struct ButtonGridPanel: View {
             .padding(.vertical, 8)
         }
     }
-    
-    private func gridColor(for index: Int) -> Color {
-        let row = index / 8
-        let colors: [Color] = [.green, .yellow, .orange, .red]
-        return colors[row % colors.count]
-    }
 }
 
 // Toggle button with local state
@@ -843,6 +842,9 @@ struct ToggleGridButton: View {
     var aspectRatio: CGFloat? = 1.0  // nil = fill available space
     let onToggle: (Float) -> Void
     
+    // Inactive: very dark gray, barely visible above panel background
+    private let inactiveColor = Color(white: 0.06)
+    
     @State private var isActive: Bool = false
     
     var body: some View {
@@ -851,11 +853,16 @@ struct ToggleGridButton: View {
             onToggle(isActive ? 1.0 : 0.0)
         } label: {
             Rectangle()
-                .fill(isActive ? color : color.opacity(0.3))
+                .fill(inactiveColor)
+                .overlay(
+                    // Border only when active
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(isActive ? color : Color.clear, lineWidth: 2)
+                )
                 .overlay(
                     Text(param.displayName)
                         .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(isActive ? color : .white.opacity(0.5))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(2)
@@ -888,14 +895,22 @@ struct GridButton: View {
     var aspectRatio: CGFloat? = 1.0  // nil = fill available space
     let action: () -> Void
     
+    // Inactive: very dark gray, barely visible above panel background
+    private let inactiveColor = Color(white: 0.06)
+    
     var body: some View {
         Button(action: action) {
             Rectangle()
-                .fill(isActive ? color : color.opacity(0.3))
+                .fill(inactiveColor)
+                .overlay(
+                    // Border only when active
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(isActive ? color : Color.clear, lineWidth: 2)
+                )
                 .overlay(
                     Text(label)
                         .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(isActive ? color : .white.opacity(0.5))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .padding(2)
@@ -1031,27 +1046,39 @@ struct KnobsPanel: View {
     let parameters: [ShaderParameter]  // NIE @Binding!
     var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
+    var onMasterOpacityChanged: ((Float) -> Void)? = nil  // Special callback for Master Opacity
     
-    // Fader colors
+    // Fader colors for 8 faders
     private let faderColors: [Color] = [
         Color(red: 254/255, green: 20/255, blue: 77/255),   // #FE144D - Red/Pink
         Color(red: 0/255, green: 150/255, blue: 60/255),    // #00963C - Green
         Color(red: 0/255, green: 118/255, blue: 192/255),   // #0076C0 - Blue
-        .orange
+        .orange,
+        .cyan,
+        .purple,
+        .yellow,
+        .pink
     ]
+    
+    // Master opacity color - white/gray
+    private let masterOpacityColor = Color.white
+    
+    @State private var masterOpacity: Float = 1.0
     
     var body: some View {
         GeometryReader { geometry in
             let sliderParams = parameters.filter { $0.type == .slider }
-            let faderWidth: CGFloat = 50
-            let faderSpacing: CGFloat = 8
-            let fadersWidth = (faderWidth * 4) + (faderSpacing * 3) + 16  // 4 faders + spacing + padding
+            let faderWidth: CGFloat = 36
+            let faderSpacing: CGFloat = 4
+            let masterFaderWidth: CGFloat = 44
+            // 8 faders + master + spacing + padding
+            let fadersWidth = (faderWidth * 8) + (faderSpacing * 7) + masterFaderWidth + faderSpacing + 20
             let knobsWidth = geometry.size.width - fadersWidth
             
             HStack(spacing: 0) {
                 // Knobs section (12 knobs in 4 columns x 3 rows)
                 ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 10) {
                         // Show first 12 parameters as knobs
                         ForEach(0..<12, id: \.self) { index in
                             if index < sliderParams.count {
@@ -1065,13 +1092,15 @@ struct KnobsPanel: View {
                                 )
                             } else {
                                 PlaceholderKnobView(
-                                    label: "KNOB \(index + 1)",
+                                    label: "K\(index + 1)",
                                     color: knobColor(for: index)
                                 )
                             }
                         }
                     }
-                    .padding(8)
+                    .padding(.horizontal, 6)
+                    .padding(.top, 32)  // Large top margin for knobs
+                    .padding(.bottom, 6)
                 }
                 .frame(width: knobsWidth)
                 
@@ -1080,14 +1109,16 @@ struct KnobsPanel: View {
                     .fill(Color(white: 0.2))
                     .frame(width: 1)
                 
-                // Faders section (4 vertical faders)
+                // Faders section (8 vertical faders + 1 Master Opacity)
                 HStack(spacing: faderSpacing) {
-                    ForEach(0..<4, id: \.self) { faderIndex in
-                        let paramIndex = 12 + faderIndex  // Faders use params 13-16
+                    // 8 parameter faders
+                    ForEach(0..<8, id: \.self) { faderIndex in
+                        let paramIndex = 12 + faderIndex  // Faders use params 13-20
                         if paramIndex < sliderParams.count {
                             VerticalFader(
                                 param: sliderParams[paramIndex],
                                 color: faderColors[faderIndex],
+                                width: faderWidth,
                                 onUpdate: { newValue in
                                     onUpdate?(sliderParams[paramIndex].id, newValue)
                                     onValueChanged?(sliderParams[paramIndex].name, newValue)
@@ -1096,13 +1127,29 @@ struct KnobsPanel: View {
                         } else {
                             PlaceholderFader(
                                 label: "F\(faderIndex + 1)",
-                                color: faderColors[faderIndex]
+                                color: faderColors[faderIndex],
+                                width: faderWidth
                             )
                         }
                     }
+                    
+                    // Separator line before Master
+                    Rectangle()
+                        .fill(Color(white: 0.3))
+                        .frame(width: 1)
+                    
+                    // Master Opacity fader
+                    MasterOpacityFader(
+                        value: $masterOpacity,
+                        color: masterOpacityColor,
+                        width: masterFaderWidth,
+                        onUpdate: { newValue in
+                            onMasterOpacityChanged?(newValue)
+                        }
+                    )
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 6)
             }
         }
     }
@@ -1113,22 +1160,69 @@ struct KnobsPanel: View {
     }
 }
 
+// Master Opacity Fader - special fader with "MASTER" label
+struct MasterOpacityFader: View {
+    @Binding var value: Float
+    let color: Color
+    let width: CGFloat
+    let onUpdate: (Float) -> Void
+    
+    // Dark gray color for Master fader
+    private let masterColor = Color(white: 0.5)
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            // Master label - same style as other faders
+            Text("MASTER")
+                .font(.system(size: 6, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: width)
+            
+            // Fader track - no handle, just fill
+            GeometryReader { geometry in
+                ZStack(alignment: .bottom) {
+                    // Track background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(white: 0.15))
+                    
+                    // Value fill - dark gray (no handle)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(masterColor.opacity(0.6))
+                        .frame(height: geometry.size.height * CGFloat(value))
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            let newValue = 1.0 - Float(gesture.location.y / geometry.size.height)
+                            value = max(0, min(1, newValue))
+                            onUpdate(value)
+                        }
+                )
+            }
+            .frame(width: width - 4)
+        }
+        .frame(width: width)
+    }
+}
+
 // Vertical Fader component
 struct VerticalFader: View {
     let param: ShaderParameter
     let color: Color
+    var width: CGFloat = 44
     let onUpdate: (Float) -> Void
     
     @State private var normalizedValue: Float = 0.5
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             // Fader label
             Text(param.displayName)
-                .font(.system(size: 7, weight: .medium))
+                .font(.system(size: 6, weight: .medium))
                 .foregroundColor(.gray)
                 .lineLimit(1)
-                .frame(width: 44)
+                .frame(width: width)
             
             // Fader track
             GeometryReader { geometry in
@@ -1145,8 +1239,8 @@ struct VerticalFader: View {
                     // Handle
                     RoundedRectangle(cornerRadius: 3)
                         .fill(color)
-                        .frame(width: 40, height: 12)
-                        .offset(y: -geometry.size.height * CGFloat(normalizedValue) + 6)
+                        .frame(width: width - 4, height: 10)
+                        .offset(y: -geometry.size.height * CGFloat(normalizedValue) + 5)
                 }
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -1159,8 +1253,9 @@ struct VerticalFader: View {
                         }
                 )
             }
-            .frame(width: 44)
+            .frame(width: width - 4)
         }
+        .frame(width: width)
         .onAppear {
             normalizedValue = (param.currentValue - param.minValue) / (param.maxValue - param.minValue)
         }
@@ -1171,24 +1266,26 @@ struct VerticalFader: View {
 struct PlaceholderFader: View {
     let label: String
     let color: Color
+    var width: CGFloat = 44
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             Text(label)
-                .font(.system(size: 7, weight: .medium))
+                .font(.system(size: 6, weight: .medium))
                 .foregroundColor(.gray)
                 .lineLimit(1)
             
             RoundedRectangle(cornerRadius: 4)
                 .fill(Color(white: 0.15))
-                .frame(width: 44)
+                .frame(width: width - 4)
                 .overlay(
                     RoundedRectangle(cornerRadius: 3)
                         .fill(color.opacity(0.3))
-                        .frame(width: 40, height: 12)
+                        .frame(width: width - 8, height: 10)
                         .offset(y: 30)
                 )
         }
+        .frame(width: width)
     }
 }
 
