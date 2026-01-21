@@ -51,8 +51,8 @@ struct ContentView: View {
     // This persists across all views so automation continues in Grid mode
     @State private var automationManager = ParameterAutomationManager()
     
-    // Timer for parameter sync (30fps)
-    private let parameterSyncTimer = Timer.publish(every: 1.0/30.0, on: .main, in: .common).autoconnect()
+    // Timer for parameter sync (60fps)
+    private let parameterSyncTimer = Timer.publish(every: 1.0/60.0, on: .main, in: .common).autoconnect()
     @State private var shaderStartTime: Date = Date()
     
     private var filteredShaders: [ShaderEntity] {
