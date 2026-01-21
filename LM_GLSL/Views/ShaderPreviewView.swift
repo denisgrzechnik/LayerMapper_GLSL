@@ -114,17 +114,15 @@ struct ShaderPreviewView: View {
             loadShaderData()
             shaderStartTime = Date()
         }
-        .onChange(of: currentTime) { _, newTime in
-            // Send current parameters to sync service during rendering
-            sendParametersToSync()
-        }
+        // OPTYMALIZACJA: Usunięto onChange(of: currentTime) który wywoływał się 60x/sek
+        // Synchronizacja parametrów jest teraz obsługiwana przez timer w ContentView @ 30fps
         .onAppear {
             loadShaderData()
             shaderStartTime = Date()
         }
     }
     
-    // MARK: - Send Parameters to Sync
+    // MARK: - Send Parameters to Sync (wywoływane tylko gdy potrzebne)
     
     private func sendParametersToSync() {
         // Debug: always log first to confirm function is called
@@ -454,17 +452,21 @@ struct MetalShaderView: UIViewRepresentable {
     // Referencja do ViewModel - przekazywana do Coordinatora w makeCoordinator
     var parametersVM: ShaderParametersViewModel?
     
+    // OPTYMALIZACJA: Czy używać współdzielonego device (dla preview zachowujemy własny @ 60fps)
+    var useSharedResources: Bool = false
+    
     func makeUIView(context: Context) -> MTKView {
         let mtkView = MTKView()
         mtkView.delegate = context.coordinator
-        mtkView.preferredFramesPerSecond = 60
+        mtkView.preferredFramesPerSecond = 60  // Główny preview @ 60fps
         mtkView.enableSetNeedsDisplay = false
         mtkView.isPaused = false
         mtkView.framebufferOnly = false
         
-        if let device = MTLCreateSystemDefaultDevice() {
+        // OPTYMALIZACJA: Użyj współdzielonego device lub utwórz własny
+        if let device = useSharedResources ? SharedMetalResources.device : MTLCreateSystemDefaultDevice() {
             mtkView.device = device
-            context.coordinator.setupMetal(device: device, shaderCode: shaderCode)
+            context.coordinator.setupMetal(device: device, shaderCode: shaderCode, useSharedQueue: useSharedResources)
         }
         
         // WAŻNE: Zapisz referencję do VM w Coordinatorze - to jednorazowe!
@@ -488,6 +490,7 @@ struct MetalShaderView: UIViewRepresentable {
         var parent: MetalShaderView
         var device: MTLDevice?
         var commandQueue: MTLCommandQueue?
+        var useSharedQueue: Bool = false
         var pipelineState: MTLRenderPipelineState?
         var startTime: Date = Date()
         var currentShaderCode: String = ""
@@ -506,9 +509,9 @@ struct MetalShaderView: UIViewRepresentable {
             self.parent = parent
             super.init()
             
-            // Nasłuchuj na notyfikację czyszczenia
+            // Nasłuchuj na notyfikację czyszczenia (używamy ResourceNotifications - poza MainActor)
             clearObserver = NotificationCenter.default.addObserver(
-                forName: ResourceManager.clearThumbnailsNotification,
+                forName: ResourceNotifications.clearThumbnails,
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
@@ -526,16 +529,26 @@ struct MetalShaderView: UIViewRepresentable {
         /// Czyści zasoby GPU tego koordynatora
         func clearResources() {
             pipelineState = nil
-            commandQueue = nil
+            // Nie czyść commandQueue jeśli używamy współdzielonej
+            if !useSharedQueue {
+                commandQueue = nil
+            }
             parameterNames = []
             parameterDefaults = [:]
         }
         
-        func setupMetal(device: MTLDevice, shaderCode: String) {
+        func setupMetal(device: MTLDevice, shaderCode: String, useSharedQueue: Bool = false) {
             self.device = device
-            self.commandQueue = device.makeCommandQueue()
-            self.currentShaderCode = shaderCode
+            self.useSharedQueue = useSharedQueue
             
+            // OPTYMALIZACJA: Użyj współdzielonej kolejki (SharedMetalResources - nonisolated)
+            if useSharedQueue {
+                self.commandQueue = SharedMetalResources.commandQueue
+            } else {
+                self.commandQueue = device.makeCommandQueue()
+            }
+            
+            self.currentShaderCode = shaderCode
             createPipelineState(shaderCode: shaderCode)
         }
         
@@ -548,10 +561,30 @@ struct MetalShaderView: UIViewRepresentable {
         func createPipelineState(shaderCode: String) {
             guard let device = device else { return }
             
-            // Parsuj parametry JEDNORAZOWO przy tworzeniu pipeline
+            // OPTYMALIZACJA: Pobierz cache'owane parametry (SharedMetalResources - thread-safe)
+            if let cachedParams = SharedMetalResources.getCachedParameters(for: shaderCode) {
+                parameterNames = cachedParams.names
+                parameterDefaults = cachedParams.defaults
+            } else {
+                // Parsuj i cache'uj
+                let parsed = ShaderParameterParser.parseParameters(from: shaderCode)
+                let params = (
+                    names: parsed.map { $0.name },
+                    defaults: parsed.reduce(into: [:]) { $0[$1.name] = $1.defaultValue }
+                )
+                parameterNames = params.names
+                parameterDefaults = params.defaults
+                SharedMetalResources.setCachedParameters(params, for: shaderCode)
+            }
+            
+            // OPTYMALIZACJA: Sprawdź cache pipeline'ów (SharedMetalResources - thread-safe)
+            if let cachedPipeline = SharedMetalResources.getCachedPipeline(for: shaderCode) {
+                self.pipelineState = cachedPipeline
+                return
+            }
+            
+            // Parsuj parametry do budowy shadera
             let parsedParams = ShaderParameterParser.parseParameters(from: shaderCode)
-            parameterNames = parsedParams.map { $0.name }
-            parameterDefaults = parsedParams.reduce(into: [:]) { $0[$1.name] = $1.defaultValue }
             
             // Build full Metal shader
             let fullShader = buildMetalShader(from: shaderCode, parameters: parsedParams)
@@ -566,7 +599,11 @@ struct MetalShaderView: UIViewRepresentable {
                 pipelineDescriptor.fragmentFunction = fragmentFunction
                 pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
                 
-                pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+                let newPipeline = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+                pipelineState = newPipeline
+                
+                // OPTYMALIZACJA: Cache'uj nowy pipeline (SharedMetalResources - thread-safe)
+                SharedMetalResources.setCachedPipeline(newPipeline, for: shaderCode)
             } catch {
                 print("Failed to create pipeline state: \(error)")
                 createFallbackPipeline()

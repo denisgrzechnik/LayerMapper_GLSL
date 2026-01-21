@@ -4,6 +4,7 @@
 //
 //  Centralny manager zasobów GPU - cache pipeline'ów Metal i kontrola timerów.
 //  Singleton umożliwiający zwalnianie pamięci z dowolnego miejsca w aplikacji.
+//  Współdzielone zasoby Metal dla wszystkich miniaturek (device, commandQueue).
 //
 //  Created: January 2026
 //
@@ -13,6 +14,84 @@ import Metal
 import MetalKit
 import SwiftUI
 import Combine
+
+// MARK: - Resource Notifications (poza @MainActor dla dostępu z dowolnego kontekstu)
+
+enum ResourceNotifications {
+    static let clearThumbnails = Notification.Name("ResourceManager.clearThumbnails")
+    static let pauseTimers = Notification.Name("ResourceManager.pauseTimers")
+    static let resumeTimers = Notification.Name("ResourceManager.resumeTimers")
+}
+
+// MARK: - Shared Metal Resources (poza @MainActor - dostępne z MTKViewDelegate)
+
+/// Współdzielone zasoby Metal i cache - całkowicie poza MainActor dla dostępu z draw()
+enum SharedMetalResources {
+    
+    /// Współdzielone urządzenie Metal - jeden dla całej aplikacji
+    nonisolated(unsafe) static var device: MTLDevice? = MTLCreateSystemDefaultDevice()
+    
+    /// Współdzielona kolejka komend - jedna dla wszystkich miniaturek
+    nonisolated(unsafe) static var commandQueue: MTLCommandQueue? = {
+        device?.makeCommandQueue()
+    }()
+    
+    /// Lock dla thread-safe dostępu do cache'ów
+    private static let cacheLock = NSLock()
+    
+    /// Statyczny cache pipeline'ów (thread-safe)
+    nonisolated(unsafe) private static var pipelineCache: [Int: MTLRenderPipelineState] = [:]
+    
+    /// Statyczny cache parametrów (thread-safe)
+    nonisolated(unsafe) private static var parametersCache: [Int: (names: [String], defaults: [String: Float])] = [:]
+    
+    /// Pobierz pipeline z cache (thread-safe, nonisolated)
+    static func getCachedPipeline(for shaderCode: String) -> MTLRenderPipelineState? {
+        let hash = shaderCode.hashValue
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return pipelineCache[hash]
+    }
+    
+    /// Zapisz pipeline do cache (thread-safe, nonisolated)
+    static func setCachedPipeline(_ pipeline: MTLRenderPipelineState, for shaderCode: String) {
+        let hash = shaderCode.hashValue
+        cacheLock.lock()
+        pipelineCache[hash] = pipeline
+        cacheLock.unlock()
+    }
+    
+    /// Pobierz parametry z cache (thread-safe, nonisolated)
+    static func getCachedParameters(for shaderCode: String) -> (names: [String], defaults: [String: Float])? {
+        let hash = shaderCode.hashValue
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return parametersCache[hash]
+    }
+    
+    /// Zapisz parametry do cache (thread-safe, nonisolated)
+    static func setCachedParameters(_ params: (names: [String], defaults: [String: Float]), for shaderCode: String) {
+        let hash = shaderCode.hashValue
+        cacheLock.lock()
+        parametersCache[hash] = params
+        cacheLock.unlock()
+    }
+    
+    /// Wyczyść wszystkie cache'e (thread-safe)
+    static func clearAllCaches() {
+        cacheLock.lock()
+        pipelineCache.removeAll()
+        parametersCache.removeAll()
+        cacheLock.unlock()
+    }
+    
+    /// Liczba pipeline'ów w cache
+    static var pipelineCount: Int {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return pipelineCache.count
+    }
+}
 
 // MARK: - Resource Manager
 
@@ -35,27 +114,38 @@ class ResourceManager: ObservableObject {
     /// Czy automatyzacja jest globalnie zablokowana (po użyciu przycisku FREE)
     @Published var isAutomationBlocked: Bool = false
     
-    // MARK: - Cache Storage
+    // MARK: - Shared Metal Resources (aliasy dla wygody)
+    
+    /// Współdzielone urządzenie Metal (alias)
+    var sharedDevice: MTLDevice? { SharedMetalResources.device }
+    
+    /// Współdzielona kolejka komend (alias)
+    var sharedCommandQueue: MTLCommandQueue? { SharedMetalResources.commandQueue }
+    
+    /// Statyczne aliasy dla kompatybilności
+    nonisolated static var sharedDeviceStatic: MTLDevice? { SharedMetalResources.device }
+    nonisolated static var sharedCommandQueueStatic: MTLCommandQueue? { SharedMetalResources.commandQueue }
+    
+    // MARK: - Cache Storage (MainActor)
     
     /// Cache pipeline'ów Metal (klucz = hash kodu shadera)
     private var pipelineCache: [Int: MTLRenderPipelineState] = [:]
     
-    /// Notyfikacja do odświeżenia thumbnailów
-    static let clearThumbnailsNotification = Notification.Name("ResourceManager.clearThumbnails")
+    /// Cache sparsowanych parametrów shadera (klucz = hash kodu)
+    private var parsedParametersCache: [Int: (names: [String], defaults: [String: Float])] = [:]
     
-    /// Notyfikacja do zatrzymania timerów
-    static let pauseTimersNotification = Notification.Name("ResourceManager.pauseTimers")
-    
-    /// Notyfikacja do wznowienia timerów
-    static let resumeTimersNotification = Notification.Name("ResourceManager.resumeTimers")
+    /// Notyfikacje - aliasy dla kompatybilności wstecznej
+    nonisolated static var clearThumbnailsNotification: Notification.Name { ResourceNotifications.clearThumbnails }
+    nonisolated static var pauseTimersNotification: Notification.Name { ResourceNotifications.pauseTimers }
+    nonisolated static var resumeTimersNotification: Notification.Name { ResourceNotifications.resumeTimers }
     
     // MARK: - Initialization
     
     private init() {
-        // Inicjalizacja bez logów
+        // Zasoby Metal są zainicjalizowane w SharedMetalResources
     }
     
-    // MARK: - Pipeline Cache
+    // MARK: - Pipeline Cache (MainActor)
     
     /// Pobierz lub stwórz pipeline state dla danego kodu shadera
     func getPipelineState(for shaderCode: String, device: MTLDevice, createIfNeeded: (() -> MTLRenderPipelineState?)? = nil) -> MTLRenderPipelineState? {
@@ -74,16 +164,41 @@ class ResourceManager: ObservableObject {
         return nil
     }
     
+    /// Pobierz pipeline używając współdzielonego device
+    func getSharedPipelineState(for shaderCode: String, createIfNeeded: (() -> MTLRenderPipelineState?)? = nil) -> MTLRenderPipelineState? {
+        guard let device = sharedDevice else { return nil }
+        return getPipelineState(for: shaderCode, device: device, createIfNeeded: createIfNeeded)
+    }
+    
     /// Zapisz pipeline do cache
     func cachePipeline(_ pipeline: MTLRenderPipelineState, for shaderCode: String) {
         let hash = shaderCode.hashValue
         pipelineCache[hash] = pipeline
         cachedPipelineCount = pipelineCache.count
+        // Zapisz też do statycznego cache (SharedMetalResources)
+        SharedMetalResources.setCachedPipeline(pipeline, for: shaderCode)
+    }
+    
+    /// Pobierz lub cache'uj sparsowane parametry shadera
+    func getParsedParameters(for shaderCode: String, parser: () -> (names: [String], defaults: [String: Float])) -> (names: [String], defaults: [String: Float]) {
+        let hash = shaderCode.hashValue
+        
+        if let cached = parsedParametersCache[hash] {
+            return cached
+        }
+        
+        let parsed = parser()
+        parsedParametersCache[hash] = parsed
+        // Zapisz też do statycznego cache (SharedMetalResources)
+        SharedMetalResources.setCachedParameters(parsed, for: shaderCode)
+        return parsed
     }
     
     /// Wyczyść całą pamięć podręczną pipeline'ów
     func clearPipelineCache() {
         pipelineCache.removeAll()
+        parsedParametersCache.removeAll()
+        SharedMetalResources.clearAllCaches()
         cachedPipelineCount = 0
     }
     
@@ -161,7 +276,7 @@ class ResourceManager: ObservableObject {
 // MARK: - Convenience Extensions
 
 extension Notification.Name {
-    static let clearShaderThumbnails = ResourceManager.clearThumbnailsNotification
-    static let pauseShaderTimers = ResourceManager.pauseTimersNotification
-    static let resumeShaderTimers = ResourceManager.resumeTimersNotification
+    static let clearShaderThumbnails = ResourceNotifications.clearThumbnails
+    static let pauseShaderTimers = ResourceNotifications.pauseTimers
+    static let resumeShaderTimers = ResourceNotifications.resumeTimers
 }

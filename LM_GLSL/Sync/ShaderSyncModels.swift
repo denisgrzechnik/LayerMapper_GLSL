@@ -131,9 +131,6 @@ struct ShaderBroadcast: Codable {
     // Parameters
     let parameters: [SyncShaderParameter]
     
-    // Automation data (parameter automation tracks as JSON)
-    let automationData: Data?
-    
     // Timing info (for BPM sync)
     let bpm: Double?
     let beat: Double?
@@ -150,7 +147,6 @@ struct ShaderBroadcast: Codable {
         fragmentCode: String,
         vertexCode: String? = nil,
         parameters: [SyncShaderParameter] = [],
-        automationData: Data? = nil,
         bpm: Double? = nil,
         beat: Double? = nil,
         time: Double = 0,
@@ -164,7 +160,6 @@ struct ShaderBroadcast: Codable {
         self.fragmentCode = fragmentCode
         self.vertexCode = vertexCode
         self.parameters = parameters
-        self.automationData = automationData
         self.bpm = bpm
         self.beat = beat
         self.time = time

@@ -303,20 +303,289 @@ struct ShaderGridItem: View {
     }
 }
 
-// MARK: - Shader Thumbnail View (small animated preview)
+// MARK: - Shader Thumbnail View (small animated preview @ 30fps with shared resources)
 
 struct ShaderThumbnailView: View {
     let shaderCode: String
     
-    @State private var isPlaying: Bool = true
-    @State private var currentTime: Double = 0
-    
     var body: some View {
-        MetalShaderView(
-            shaderCode: shaderCode,
-            isPlaying: $isPlaying,
-            currentTime: $currentTime
-        )
+        ThumbnailMetalView(shaderCode: shaderCode)
+    }
+}
+
+// MARK: - Optimized Thumbnail Metal View (30fps, shared resources)
+
+struct ThumbnailMetalView: UIViewRepresentable {
+    let shaderCode: String
+    
+    func makeUIView(context: Context) -> MTKView {
+        let mtkView = MTKView()
+        mtkView.delegate = context.coordinator
+        
+        // OPTYMALIZACJA: 30fps zamiast 60fps dla miniaturek
+        mtkView.preferredFramesPerSecond = 30
+        mtkView.enableSetNeedsDisplay = false
+        mtkView.isPaused = false
+        mtkView.framebufferOnly = false
+        
+        // OPTYMALIZACJA: Użyj współdzielonego device (SharedMetalResources - poza MainActor)
+        if let sharedDevice = SharedMetalResources.device {
+            mtkView.device = sharedDevice
+            context.coordinator.setupMetal(shaderCode: shaderCode)
+        }
+        
+        return mtkView
+    }
+    
+    func updateUIView(_ uiView: MTKView, context: Context) {
+        context.coordinator.updateShader(shaderCode)
+    }
+    
+    func makeCoordinator() -> ThumbnailCoordinator {
+        ThumbnailCoordinator(shaderCode: shaderCode)
+    }
+    
+    class ThumbnailCoordinator: NSObject, MTKViewDelegate {
+        var pipelineState: MTLRenderPipelineState?
+        var startTime: Date = Date()
+        var currentShaderCode: String
+        var parameterNames: [String] = []
+        var parameterDefaults: [String: Float] = [:]
+        
+        private var clearObserver: NSObjectProtocol?
+        
+        init(shaderCode: String) {
+            self.currentShaderCode = shaderCode
+            super.init()
+            
+            // Używamy ResourceNotifications - poza MainActor
+            clearObserver = NotificationCenter.default.addObserver(
+                forName: ResourceNotifications.clearThumbnails,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.clearResources()
+            }
+        }
+        
+        deinit {
+            if let observer = clearObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+        }
+        
+        func clearResources() {
+            pipelineState = nil
+            parameterNames = []
+            parameterDefaults = [:]
+        }
+        
+        func setupMetal(shaderCode: String) {
+            self.currentShaderCode = shaderCode
+            createPipelineState(shaderCode: shaderCode)
+        }
+        
+        func updateShader(_ shaderCode: String) {
+            guard shaderCode != currentShaderCode else { return }
+            currentShaderCode = shaderCode
+            createPipelineState(shaderCode: shaderCode)
+        }
+        
+        func createPipelineState(shaderCode: String) {
+            // Używamy SharedMetalResources (całkowicie poza MainActor)
+            guard let device = SharedMetalResources.device else { return }
+            
+            // OPTYMALIZACJA: Pobierz cache'owane parametry (thread-safe)
+            if let cachedParams = SharedMetalResources.getCachedParameters(for: shaderCode) {
+                parameterNames = cachedParams.names
+                parameterDefaults = cachedParams.defaults
+            } else {
+                // Parsuj i cache'uj
+                let parsed = ShaderParameterParser.parseParameters(from: shaderCode)
+                let params = (
+                    names: parsed.map { $0.name },
+                    defaults: parsed.reduce(into: [:]) { $0[$1.name] = $1.defaultValue }
+                )
+                parameterNames = params.names
+                parameterDefaults = params.defaults
+                SharedMetalResources.setCachedParameters(params, for: shaderCode)
+            }
+            
+            // OPTYMALIZACJA: Sprawdź cache pipeline'ów (thread-safe)
+            if let cachedPipeline = SharedMetalResources.getCachedPipeline(for: shaderCode) {
+                self.pipelineState = cachedPipeline
+                return
+            }
+            
+            // Parsuj parametry do budowy shadera
+            let parsedParams = ShaderParameterParser.parseParameters(from: shaderCode)
+            let fullShader = buildMetalShader(from: shaderCode, parameters: parsedParams)
+            
+            do {
+                let library = try device.makeLibrary(source: fullShader, options: nil)
+                let vertexFunction = library.makeFunction(name: "vertexShader")
+                let fragmentFunction = library.makeFunction(name: "fragmentShader")
+                
+                let pipelineDescriptor = MTLRenderPipelineDescriptor()
+                pipelineDescriptor.vertexFunction = vertexFunction
+                pipelineDescriptor.fragmentFunction = fragmentFunction
+                pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+                
+                let newPipeline = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+                self.pipelineState = newPipeline
+                
+                // Cache'uj pipeline (thread-safe)
+                SharedMetalResources.setCachedPipeline(newPipeline, for: shaderCode)
+            } catch {
+                createFallbackPipeline()
+            }
+        }
+        
+        func createFallbackPipeline() {
+            guard let device = SharedMetalResources.device else { return }
+            
+            parameterNames = []
+            parameterDefaults = [:]
+            
+            let fallbackShader = """
+            #include <metal_stdlib>
+            using namespace metal;
+            
+            struct VertexOut {
+                float4 position [[position]];
+                float2 uv;
+            };
+            
+            vertex VertexOut vertexShader(uint vertexID [[vertex_id]]) {
+                float2 positions[6] = {
+                    float2(-1, -1), float2(1, -1), float2(-1, 1),
+                    float2(-1, 1), float2(1, -1), float2(1, 1)
+                };
+                
+                VertexOut out;
+                out.position = float4(positions[vertexID], 0, 1);
+                out.uv = positions[vertexID] * 0.5 + 0.5;
+                return out;
+            }
+            
+            fragment float4 fragmentShader(VertexOut in [[stage_in]], constant float &time [[buffer(0)]]) {
+                float2 uv = in.uv;
+                float3 col = 0.5 + 0.5 * cos(time + uv.xyx + float3(0, 2, 4));
+                return float4(col, 1.0);
+            }
+            """
+            
+            do {
+                let library = try device.makeLibrary(source: fallbackShader, options: nil)
+                let vertexFunction = library.makeFunction(name: "vertexShader")
+                let fragmentFunction = library.makeFunction(name: "fragmentShader")
+                
+                let pipelineDescriptor = MTLRenderPipelineDescriptor()
+                pipelineDescriptor.vertexFunction = vertexFunction
+                pipelineDescriptor.fragmentFunction = fragmentFunction
+                pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+                
+                pipelineState = try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+            } catch {
+                print("Failed to create fallback pipeline: \(error)")
+            }
+        }
+        
+        func buildMetalShader(from fragmentBody: String, parameters: [ShaderParameter]) -> String {
+            var paramDeclarations = ""
+            var paramBufferArg = ""
+            
+            if !parameters.isEmpty {
+                paramDeclarations = """
+                
+                struct ShaderParams {
+                \(parameters.map { "    float \($0.name);" }.joined(separator: "\n"))
+                };
+                
+                """
+                paramBufferArg = ", constant ShaderParams &params [[buffer(1)]]"
+            }
+            
+            let cleanBody = fragmentBody
+                .components(separatedBy: "\n")
+                .filter { !$0.contains("@param") && !$0.contains("@toggle") }
+                .joined(separator: "\n")
+            
+            var processedBody = cleanBody
+            for param in parameters {
+                let pattern = "\\b\(param.name)\\b"
+                if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                    processedBody = regex.stringByReplacingMatches(
+                        in: processedBody,
+                        options: [],
+                        range: NSRange(processedBody.startIndex..., in: processedBody),
+                        withTemplate: "params.\(param.name)"
+                    )
+                }
+            }
+            
+            return """
+            #include <metal_stdlib>
+            using namespace metal;
+            
+            struct VertexOut {
+                float4 position [[position]];
+                float2 uv;
+            };
+            \(paramDeclarations)
+            vertex VertexOut vertexShader(uint vertexID [[vertex_id]]) {
+                float2 positions[6] = {
+                    float2(-1, -1), float2(1, -1), float2(-1, 1),
+                    float2(-1, 1), float2(1, -1), float2(1, 1)
+                };
+                
+                VertexOut out;
+                out.position = float4(positions[vertexID], 0, 1);
+                out.uv = positions[vertexID] * 0.5 + 0.5;
+                out.uv.y = 1.0 - out.uv.y;
+                return out;
+            }
+            
+            fragment float4 fragmentShader(VertexOut in [[stage_in]], constant float &iTime [[buffer(0)]]\(paramBufferArg)) {
+                float2 uv = in.uv;
+                \(processedBody)
+            }
+            """
+        }
+        
+        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+        
+        func draw(in view: MTKView) {
+            // OPTYMALIZACJA: Używaj współdzielonej kolejki komend (SharedMetalResources - nonisolated)
+            guard let drawable = view.currentDrawable,
+                  let descriptor = view.currentRenderPassDescriptor,
+                  let commandQueue = SharedMetalResources.commandQueue,
+                  let commandBuffer = commandQueue.makeCommandBuffer(),
+                  let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor),
+                  let pipelineState = pipelineState else {
+                return
+            }
+            
+            let elapsed = Date().timeIntervalSince(startTime)
+            var time = Float(elapsed)
+            
+            encoder.setRenderPipelineState(pipelineState)
+            encoder.setFragmentBytes(&time, length: MemoryLayout<Float>.size, index: 0)
+            
+            // Użyj domyślnych wartości parametrów dla miniaturek
+            if !parameterNames.isEmpty {
+                var paramValues: [Float] = parameterNames.map { parameterDefaults[$0] ?? 0.5 }
+                if !paramValues.isEmpty {
+                    encoder.setFragmentBytes(&paramValues, length: MemoryLayout<Float>.size * paramValues.count, index: 1)
+                }
+            }
+            
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            encoder.endEncoding()
+            
+            commandBuffer.present(drawable)
+            commandBuffer.commit()
+        }
     }
 }
 

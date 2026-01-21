@@ -299,14 +299,26 @@ struct ContentView: View {
                 broadcastCurrentShader()  // Broadcast current shader first
                 syncService.startParameterStreaming()
             } else {
+                // OPTYMALIZACJA: Zatrzymaj timer gdy broadcast się kończy
+                ResourceManager.shared.pauseParameterTimer()
                 syncService.stopParameterStreaming()
             }
         }
+        .onChange(of: syncService.isConnected) { oldValue, newValue in
+            // OPTYMALIZACJA: Kontroluj timer na podstawie stanu połączenia
+            if newValue && syncService.isAdvertising {
+                // Połączono - wznów timer
+                ResourceManager.shared.resumeParameterTimer()
+            } else if !newValue {
+                // Rozłączono - zatrzymaj timer (oszczędność CPU)
+                ResourceManager.shared.pauseParameterTimer()
+            }
+        }
         .onReceive(parameterSyncTimer) { _ in
-            // Skip if timer is paused by ResourceManager
+            // OPTYMALIZACJA: Szybkie sprawdzenie - skip jeśli timer jest wyłączony
             guard ResourceManager.shared.isParameterTimerActive else { return }
             
-            // Continuously update parameters in syncService regardless of view mode
+            // Sprawdź warunki broadcast + połączenie
             guard syncService.isAdvertising, syncService.isConnected else { return }
             
             // Build parameter values from parametersVM
