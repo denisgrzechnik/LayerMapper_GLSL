@@ -732,37 +732,100 @@ struct ButtonGridPanel: View {
     var onToggle: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
-    // 8 kolumn - przyciski kwadratowe
-    let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 8)
-    
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 4) {
-                let toggleParams = parameters.filter { $0.type == .toggle }
-                
-                if toggleParams.isEmpty {
-                    // Show placeholder buttons (16 = 2 rows x 8 columns)
-                    ForEach(0..<16, id: \.self) { index in
-                        GridButton(
-                            label: "BTN \(index + 1)",
-                            isActive: false,
-                            color: gridColor(for: index)
-                        ) {}
+        GeometryReader { geometry in
+            let toggleParams = parameters.filter { $0.type == .toggle }
+            let buttonSpacing: CGFloat = 4
+            let horizontalPadding: CGFloat = 8
+            let availableWidth = geometry.size.width - (horizontalPadding * 2)
+            let buttonWidth = (availableWidth - (buttonSpacing * 7)) / 8
+            
+            // Calculate row heights: rows 1 & 2 are equal, row 3 is 50% of their height
+            let totalHeightRatio: CGFloat = 2.5 // 1 + 1 + 0.5
+            let row12Height = (geometry.size.height - (buttonSpacing * 2) - 16) / totalHeightRatio
+            let row3Height = row12Height * 0.5
+            
+            VStack(spacing: buttonSpacing) {
+                // Row 1 (buttons 1-8)
+                HStack(spacing: buttonSpacing) {
+                    ForEach(0..<8, id: \.self) { index in
+                        if index < toggleParams.count {
+                            ToggleGridButton(
+                                param: toggleParams[index],
+                                color: gridColor(for: index),
+                                aspectRatio: nil,
+                                onToggle: { newValue in
+                                    onToggle?(toggleParams[index].id, newValue)
+                                    onValueChanged?(toggleParams[index].name, newValue)
+                                }
+                            )
+                            .frame(width: buttonWidth, height: row12Height)
+                        } else {
+                            GridButton(
+                                label: "BTN \(index + 1)",
+                                isActive: false,
+                                color: gridColor(for: index),
+                                aspectRatio: nil
+                            ) {}
+                            .frame(width: buttonWidth, height: row12Height)
+                        }
                     }
-                } else {
-                    ForEach(Array(toggleParams.enumerated()), id: \.element.id) { index, param in
-                        ToggleGridButton(
-                            param: param,
-                            color: gridColor(for: index),
-                            onToggle: { newValue in
-                                onToggle?(param.id, newValue)
-                                onValueChanged?(param.name, newValue)
-                            }
-                        )
+                }
+                
+                // Row 2 (buttons 9-16)
+                HStack(spacing: buttonSpacing) {
+                    ForEach(8..<16, id: \.self) { index in
+                        if index < toggleParams.count {
+                            ToggleGridButton(
+                                param: toggleParams[index],
+                                color: gridColor(for: index),
+                                aspectRatio: nil,
+                                onToggle: { newValue in
+                                    onToggle?(toggleParams[index].id, newValue)
+                                    onValueChanged?(toggleParams[index].name, newValue)
+                                }
+                            )
+                            .frame(width: buttonWidth, height: row12Height)
+                        } else {
+                            GridButton(
+                                label: "BTN \(index + 1)",
+                                isActive: false,
+                                color: gridColor(for: index),
+                                aspectRatio: nil
+                            ) {}
+                            .frame(width: buttonWidth, height: row12Height)
+                        }
+                    }
+                }
+                
+                // Row 3 (buttons 17-24) - 50% height
+                HStack(spacing: buttonSpacing) {
+                    ForEach(16..<24, id: \.self) { index in
+                        if index < toggleParams.count {
+                            ToggleGridButton(
+                                param: toggleParams[index],
+                                color: gridColor(for: index),
+                                aspectRatio: nil,
+                                onToggle: { newValue in
+                                    onToggle?(toggleParams[index].id, newValue)
+                                    onValueChanged?(toggleParams[index].name, newValue)
+                                }
+                            )
+                            .frame(width: buttonWidth, height: row3Height)
+                        } else {
+                            GridButton(
+                                label: "BTN \(index + 1)",
+                                isActive: false,
+                                color: gridColor(for: index),
+                                aspectRatio: nil
+                            ) {}
+                            .frame(width: buttonWidth, height: row3Height)
+                        }
                     }
                 }
             }
-            .padding(8)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, 8)
         }
     }
     
@@ -777,6 +840,7 @@ struct ButtonGridPanel: View {
 struct ToggleGridButton: View {
     let param: ShaderParameter
     let color: Color
+    var aspectRatio: CGFloat? = 1.0  // nil = fill available space
     let onToggle: (Float) -> Void
     
     @State private var isActive: Bool = false
@@ -796,10 +860,23 @@ struct ToggleGridButton: View {
                         .lineLimit(2)
                         .padding(2)
                 )
-                .aspectRatio(1, contentMode: .fit)
+                .modifier(AspectRatioModifier(ratio: aspectRatio))
         }
         .onAppear {
             isActive = param.currentValue > 0.5
+        }
+    }
+}
+
+// Modifier do opcjonalnego aspect ratio
+struct AspectRatioModifier: ViewModifier {
+    let ratio: CGFloat?
+    
+    func body(content: Content) -> some View {
+        if let ratio = ratio {
+            content.aspectRatio(ratio, contentMode: .fit)
+        } else {
+            content
         }
     }
 }
@@ -808,6 +885,7 @@ struct GridButton: View {
     let label: String
     let isActive: Bool
     let color: Color
+    var aspectRatio: CGFloat? = 1.0  // nil = fill available space
     let action: () -> Void
     
     var body: some View {
@@ -822,7 +900,7 @@ struct GridButton: View {
                         .lineLimit(2)
                         .padding(2)
                 )
-                .aspectRatio(1, contentMode: .fit)
+                .modifier(AspectRatioModifier(ratio: aspectRatio))
         }
     }
 }
@@ -835,66 +913,111 @@ struct XYPadPanel: View {
     var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
-    @State private var padPosition: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    // Pad colors: #FE144D, #00963C, #0076C0
+    private let padColors: [Color] = [
+        Color(red: 254/255, green: 20/255, blue: 77/255),   // #FE144D - Red/Pink
+        Color(red: 0/255, green: 150/255, blue: 60/255),    // #00963C - Green
+        Color(red: 0/255, green: 118/255, blue: 192/255)    // #0076C0 - Blue
+    ]
+    
+    @State private var padPositions: [CGPoint] = [
+        CGPoint(x: 0.5, y: 0.5),
+        CGPoint(x: 0.5, y: 0.5),
+        CGPoint(x: 0.5, y: 0.5)
+    ]
     
     var body: some View {
         GeometryReader { geometry in
-            let size = min(geometry.size.width, geometry.size.height) - 20
+            let spacing: CGFloat = 8
+            let horizontalPadding: CGFloat = 12
+            let availableWidth = geometry.size.width - (horizontalPadding * 2) - (spacing * 2)
+            let padSize = min(availableWidth / 3, geometry.size.height - 20)
             
-            ZStack {
-                // Background
-                Rectangle()
-                    .stroke(Color.yellow, lineWidth: 2)
-                    .background(Color.black)
-                    .frame(width: size, height: size)
-                
-                // Grid lines
-                Path { path in
-                    // Vertical line
-                    path.move(to: CGPoint(x: size/2, y: 0))
-                    path.addLine(to: CGPoint(x: size/2, y: size))
-                    // Horizontal line
-                    path.move(to: CGPoint(x: 0, y: size/2))
-                    path.addLine(to: CGPoint(x: size, y: size/2))
-                }
-                .stroke(Color.yellow.opacity(0.5), lineWidth: 1)
-                .frame(width: size, height: size)
-                
-                // Cursor
-                Circle()
-                    .fill(Color.yellow)
-                    .frame(width: 20, height: 20)
-                    .position(
-                        x: padPosition.x * size,
-                        y: padPosition.y * size
+            HStack(spacing: spacing) {
+                ForEach(0..<3, id: \.self) { padIndex in
+                    SingleXYPad(
+                        position: $padPositions[padIndex],
+                        color: padColors[padIndex],
+                        size: padSize,
+                        padIndex: padIndex,
+                        parameters: parameters,
+                        onUpdate: onUpdate,
+                        onValueChanged: onValueChanged
                     )
+                }
             }
-            .frame(width: size, height: size)
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let x = max(0, min(1, value.location.x / size))
-                        let y = max(0, min(1, value.location.y / size))
-                        padPosition = CGPoint(x: x, y: y)
-                        updateXYParameters()
-                    }
-            )
+            .padding(.horizontal, horizontalPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
+}
+
+// Single XY Pad component
+struct SingleXYPad: View {
+    @Binding var position: CGPoint
+    let color: Color
+    let size: CGFloat
+    let padIndex: Int
+    let parameters: [ShaderParameter]
+    var onUpdate: ((UUID, Float) -> Void)?
+    var onValueChanged: ((String, Float) -> Void)?
     
-    private func updateXYParameters() {
-        // Map pad X to first slider parameter, Y to second
+    var body: some View {
+        ZStack {
+            // Background
+            Rectangle()
+                .stroke(color, lineWidth: 2)
+                .background(Color.black)
+            
+            // Grid lines
+            Path { path in
+                // Vertical line
+                path.move(to: CGPoint(x: size/2, y: 0))
+                path.addLine(to: CGPoint(x: size/2, y: size))
+                // Horizontal line
+                path.move(to: CGPoint(x: 0, y: size/2))
+                path.addLine(to: CGPoint(x: size, y: size/2))
+            }
+            .stroke(color.opacity(0.4), lineWidth: 1)
+            
+            // Cursor
+            Circle()
+                .fill(color)
+                .frame(width: 16, height: 16)
+                .position(
+                    x: position.x * size,
+                    y: position.y * size
+                )
+        }
+        .frame(width: size, height: size)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let x = max(0, min(1, value.location.x / size))
+                    let y = max(0, min(1, value.location.y / size))
+                    position = CGPoint(x: x, y: y)
+                    updateParameters(x: x, y: y)
+                }
+        )
+    }
+    
+    private func updateParameters(x: CGFloat, y: CGFloat) {
+        // Each pad controls 2 consecutive slider parameters
         let sliderParams = parameters.filter { $0.type == .slider }
-        if sliderParams.count >= 1 {
-            let param = sliderParams[0]
-            let newValue = param.minValue + Float(padPosition.x) * (param.maxValue - param.minValue)
+        let baseIndex = padIndex * 2
+        
+        // X axis parameter
+        if baseIndex < sliderParams.count {
+            let param = sliderParams[baseIndex]
+            let newValue = param.minValue + Float(x) * (param.maxValue - param.minValue)
             onUpdate?(param.id, newValue)
             onValueChanged?(param.name, newValue)
         }
-        if sliderParams.count >= 2 {
-            let param = sliderParams[1]
-            let newValue = param.minValue + Float(1 - padPosition.y) * (param.maxValue - param.minValue)
+        
+        // Y axis parameter
+        if baseIndex + 1 < sliderParams.count {
+            let param = sliderParams[baseIndex + 1]
+            let newValue = param.minValue + Float(1 - y) * (param.maxValue - param.minValue)
             onUpdate?(param.id, newValue)
             onValueChanged?(param.name, newValue)
         }
@@ -909,45 +1032,163 @@ struct KnobsPanel: View {
     var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
     
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
+    // Fader colors
+    private let faderColors: [Color] = [
+        Color(red: 254/255, green: 20/255, blue: 77/255),   // #FE144D - Red/Pink
+        Color(red: 0/255, green: 150/255, blue: 60/255),    // #00963C - Green
+        Color(red: 0/255, green: 118/255, blue: 192/255),   // #0076C0 - Blue
+        .orange
     ]
     
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                let sliderParams = parameters.filter { $0.type == .slider }
-                
-                if sliderParams.isEmpty {
-                    ForEach(0..<8, id: \.self) { index in
-                        PlaceholderKnobView(
-                            label: "KNOB \(index + 1)",
-                            color: knobColor(for: index)
-                        )
-                    }
-                } else {
-                    ForEach(Array(sliderParams.enumerated()), id: \.element.id) { index, param in
-                        OptimizedKnobView(
-                            param: param,
-                            color: knobColor(for: index),
-                            onUpdate: { newValue in
-                                onUpdate?(param.id, newValue)
-                                onValueChanged?(param.name, newValue)
+        GeometryReader { geometry in
+            let sliderParams = parameters.filter { $0.type == .slider }
+            let faderWidth: CGFloat = 50
+            let faderSpacing: CGFloat = 8
+            let fadersWidth = (faderWidth * 4) + (faderSpacing * 3) + 16  // 4 faders + spacing + padding
+            let knobsWidth = geometry.size.width - fadersWidth
+            
+            HStack(spacing: 0) {
+                // Knobs section (12 knobs in 4 columns x 3 rows)
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                        // Show first 12 parameters as knobs
+                        ForEach(0..<12, id: \.self) { index in
+                            if index < sliderParams.count {
+                                OptimizedKnobView(
+                                    param: sliderParams[index],
+                                    color: knobColor(for: index),
+                                    onUpdate: { newValue in
+                                        onUpdate?(sliderParams[index].id, newValue)
+                                        onValueChanged?(sliderParams[index].name, newValue)
+                                    }
+                                )
+                            } else {
+                                PlaceholderKnobView(
+                                    label: "KNOB \(index + 1)",
+                                    color: knobColor(for: index)
+                                )
                             }
-                        )
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(width: knobsWidth)
+                
+                // Vertical divider
+                Rectangle()
+                    .fill(Color(white: 0.2))
+                    .frame(width: 1)
+                
+                // Faders section (4 vertical faders)
+                HStack(spacing: faderSpacing) {
+                    ForEach(0..<4, id: \.self) { faderIndex in
+                        let paramIndex = 12 + faderIndex  // Faders use params 13-16
+                        if paramIndex < sliderParams.count {
+                            VerticalFader(
+                                param: sliderParams[paramIndex],
+                                color: faderColors[faderIndex],
+                                onUpdate: { newValue in
+                                    onUpdate?(sliderParams[paramIndex].id, newValue)
+                                    onValueChanged?(sliderParams[paramIndex].name, newValue)
+                                }
+                            )
+                        } else {
+                            PlaceholderFader(
+                                label: "F\(faderIndex + 1)",
+                                color: faderColors[faderIndex]
+                            )
+                        }
                     }
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
             }
-            .padding()
         }
     }
     
     private func knobColor(for index: Int) -> Color {
         let colors: [Color] = [.orange, .cyan, .purple, .green, .yellow, .pink]
         return colors[index % colors.count]
+    }
+}
+
+// Vertical Fader component
+struct VerticalFader: View {
+    let param: ShaderParameter
+    let color: Color
+    let onUpdate: (Float) -> Void
+    
+    @State private var normalizedValue: Float = 0.5
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            // Fader label
+            Text(param.displayName)
+                .font(.system(size: 7, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: 44)
+            
+            // Fader track
+            GeometryReader { geometry in
+                ZStack(alignment: .bottom) {
+                    // Track background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(white: 0.15))
+                    
+                    // Value fill
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(color.opacity(0.6))
+                        .frame(height: geometry.size.height * CGFloat(normalizedValue))
+                    
+                    // Handle
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color)
+                        .frame(width: 40, height: 12)
+                        .offset(y: -geometry.size.height * CGFloat(normalizedValue) + 6)
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let newValue = 1.0 - Float(value.location.y / geometry.size.height)
+                            normalizedValue = max(0, min(1, newValue))
+                            
+                            let actualValue = param.minValue + normalizedValue * (param.maxValue - param.minValue)
+                            onUpdate(actualValue)
+                        }
+                )
+            }
+            .frame(width: 44)
+        }
+        .onAppear {
+            normalizedValue = (param.currentValue - param.minValue) / (param.maxValue - param.minValue)
+        }
+    }
+}
+
+// Placeholder Fader
+struct PlaceholderFader: View {
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 7, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color(white: 0.15))
+                .frame(width: 44)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color.opacity(0.3))
+                        .frame(width: 40, height: 12)
+                        .offset(y: 30)
+                )
+        }
     }
 }
 
