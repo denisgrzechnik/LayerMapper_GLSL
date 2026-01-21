@@ -13,7 +13,7 @@ import SwiftData
 class BuiltInShaderLoader {
     
     private let modelContext: ModelContext
-    private let userDefaultsKey = "BuiltInShadersLoaded_v16"
+    private let userDefaultsKey = "BuiltInShadersLoaded_v17"
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -28,10 +28,10 @@ class BuiltInShaderLoader {
     /// Ładuje wszystkie wbudowane shadery jeśli nie zostały jeszcze załadowane
     func loadIfNeeded() {
         guard !areShadersLoaded else {
-            print("✅ Built-in shaders v16 already loaded - skipping")
+            print("✅ Built-in shaders v17 already loaded - skipping")
             return
         }
-        print("📦 Loading built-in shaders v16...")
+        print("📦 Loading built-in shaders v17...")
         // First delete old built-in shaders to avoid duplicates
         deleteAllBuiltInShaders()
         loadAllBuiltInShaders()
