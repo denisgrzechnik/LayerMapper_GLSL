@@ -375,6 +375,9 @@ struct ContentView: View {
         // Load and play automation from shader data
         automationManager.loadAndPlay(from: shader.automationData)
         
+        // Load automation presets for this shader
+        automationManager.importPresetsFromData(shader.automationPresetsData)
+        
         // Setup automation callback to update parameters during playback
         automationManager.onParameterUpdate = { [weak parametersVM] name, value in
             guard let vm = parametersVM else { return }

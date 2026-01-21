@@ -458,7 +458,13 @@ class ParameterAutomationManager {
     
     /// Importuj presety z Data
     func importPresetsFromData(_ data: Data?) {
-        guard let data = data else { return }
+        // Najpierw wyczyść stare presety
+        presets.removeAll()
+        
+        guard let data = data else {
+            print("📥 Cleared automation presets (no data)")
+            return
+        }
         
         do {
             let presetsArray = try JSONDecoder().decode([AutomationPreset].self, from: data)
