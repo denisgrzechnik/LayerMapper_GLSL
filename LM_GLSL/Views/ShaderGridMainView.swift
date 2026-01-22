@@ -216,7 +216,8 @@ struct ShaderGridMainView: View {
                         ForEach(communityShaders) { shaderInfo in
                             CommunityShaderItem(
                                 shaderInfo: shaderInfo,
-                                onDownload: { downloadCommunityShader(shaderInfo) }
+                                onDownload: { self.downloadCommunityShader(shaderInfo) },
+                                onDoubleTap: { self.downloadAndOpenParameters(shaderInfo) }
                             )
                         }
                     }
@@ -248,20 +249,71 @@ struct ShaderGridMainView: View {
         }
     }
     
+    /// Find or create "Download" folder for community shaders
+    private func getOrCreateDownloadFolder() -> ShaderFolder {
+        // Try to find existing "Download" folder
+        if let existingFolder = folders.first(where: { $0.name == "Download" }) {
+            return existingFolder
+        }
+        
+        // Create new "Download" folder
+        let downloadFolder = ShaderFolder(
+            name: "Download",
+            colorHex: "#00BFFF",  // Deep sky blue
+            iconName: "arrow.down.circle.fill",
+            order: folders.count
+        )
+        modelContext.insert(downloadFolder)
+        return downloadFolder
+    }
+    
     private func downloadCommunityShader(_ shaderInfo: SharedShaderInfo) {
         Task {
             do {
                 let newShader = try await CloudKitShaderService.shared.downloadShaderAsEntity(shaderInfo)
                 await MainActor.run {
                     modelContext.insert(newShader)
+                    
+                    // Add to "Download" folder
+                    let downloadFolder = getOrCreateDownloadFolder()
+                    downloadFolder.addShader(newShader.id)
+                    
                     do {
                         try modelContext.save()
-                        print("✅ Community shader '\(shaderInfo.name)' saved successfully to local database")
+                        print("✅ Community shader '\(shaderInfo.name)' saved to Download folder")
                     } catch {
                         print("❌ Failed to save community shader to database: \(error)")
                     }
                     selectedShader = newShader
                     showingCommunityShaders = false
+                }
+            } catch {
+                print("❌ Failed to download shader: \(error)")
+            }
+        }
+    }
+    
+    /// Download community shader and open ParameterView (double-tap action)
+    private func downloadAndOpenParameters(_ shaderInfo: SharedShaderInfo) {
+        Task {
+            do {
+                let newShader = try await CloudKitShaderService.shared.downloadShaderAsEntity(shaderInfo)
+                await MainActor.run {
+                    modelContext.insert(newShader)
+                    
+                    // Add to "Download" folder
+                    let downloadFolder = getOrCreateDownloadFolder()
+                    downloadFolder.addShader(newShader.id)
+                    
+                    do {
+                        try modelContext.save()
+                        print("✅ Community shader '\(shaderInfo.name)' saved to Download folder and opening parameters")
+                    } catch {
+                        print("❌ Failed to save community shader to database: \(error)")
+                    }
+                    selectedShader = newShader
+                    showingCommunityShaders = false
+                    showingParametersView = true
                 }
             } catch {
                 print("❌ Failed to download shader: \(error)")
@@ -378,8 +430,10 @@ struct GridShaderItem: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            // Animated shader thumbnail
-            ShaderThumbnailView(shaderCode: shader.fragmentCode)
+            // Animated shader thumbnail - with saved parameter values
+            // Use parametersHash as id to force refresh when parameters change
+            ShaderThumbnailView(shaderCode: shader.fragmentCode, savedParameters: shader.parameters)
+                .id(shader.parametersHash)
                 .aspectRatio(1, contentMode: .fit)
                 .clipped()
                 .cornerRadius(6)
@@ -523,6 +577,7 @@ struct GridShaderItem: View {
 struct CommunityShaderItem: View {
     let shaderInfo: SharedShaderInfo
     let onDownload: () -> Void
+    let onDoubleTap: () -> Void
     
     @State private var isDownloading = false
     
@@ -549,6 +604,9 @@ struct CommunityShaderItem: View {
                     }
                     .padding(4)
                 )
+                .onTapGesture(count: 2) {
+                    onDoubleTap()
+                }
             
             // Info row
             HStack(spacing: 4) {

@@ -257,8 +257,10 @@ struct ShaderGridItem: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            // Animated shader thumbnail
-            ShaderThumbnailView(shaderCode: shader.fragmentCode)
+            // Animated shader thumbnail - with saved parameter values
+            // Use parametersHash as id to force refresh when parameters change
+            ShaderThumbnailView(shaderCode: shader.fragmentCode, savedParameters: shader.parameters)
+                .id(shader.parametersHash)
                 .aspectRatio(1, contentMode: .fit)
                 .clipped()
                 .cornerRadius(6)
@@ -307,9 +309,10 @@ struct ShaderGridItem: View {
 
 struct ShaderThumbnailView: View {
     let shaderCode: String
+    var savedParameters: [ShaderParameterEntity]? = nil
     
     var body: some View {
-        ThumbnailMetalView(shaderCode: shaderCode)
+        ThumbnailMetalView(shaderCode: shaderCode, savedParameters: savedParameters)
     }
 }
 
@@ -317,6 +320,13 @@ struct ShaderThumbnailView: View {
 
 struct ThumbnailMetalView: UIViewRepresentable {
     let shaderCode: String
+    var savedParameters: [ShaderParameterEntity]? = nil
+    
+    // Convert saved parameters to dictionary for coordinator
+    private var savedParameterValues: [String: Float] {
+        guard let params = savedParameters else { return [:] }
+        return params.reduce(into: [:]) { $0[$1.name] = $1.floatValue }
+    }
     
     func makeUIView(context: Context) -> MTKView {
         let mtkView = MTKView()
@@ -331,18 +341,18 @@ struct ThumbnailMetalView: UIViewRepresentable {
         // OPTYMALIZACJA: Użyj współdzielonego device (SharedMetalResources - poza MainActor)
         if let sharedDevice = SharedMetalResources.device {
             mtkView.device = sharedDevice
-            context.coordinator.setupMetal(shaderCode: shaderCode)
+            context.coordinator.setupMetal(shaderCode: shaderCode, savedValues: savedParameterValues)
         }
         
         return mtkView
     }
     
     func updateUIView(_ uiView: MTKView, context: Context) {
-        context.coordinator.updateShader(shaderCode)
+        context.coordinator.updateShader(shaderCode, savedValues: savedParameterValues)
     }
     
     func makeCoordinator() -> ThumbnailCoordinator {
-        ThumbnailCoordinator(shaderCode: shaderCode)
+        ThumbnailCoordinator(shaderCode: shaderCode, savedValues: savedParameterValues)
     }
     
     class ThumbnailCoordinator: NSObject, MTKViewDelegate {
@@ -351,11 +361,13 @@ struct ThumbnailMetalView: UIViewRepresentable {
         var currentShaderCode: String
         var parameterNames: [String] = []
         var parameterDefaults: [String: Float] = [:]
+        var savedParameterValues: [String: Float] = [:]
         
         private var clearObserver: NSObjectProtocol?
         
-        init(shaderCode: String) {
+        init(shaderCode: String, savedValues: [String: Float] = [:]) {
             self.currentShaderCode = shaderCode
+            self.savedParameterValues = savedValues
             super.init()
             
             // Używamy ResourceNotifications - poza MainActor
@@ -378,17 +390,26 @@ struct ThumbnailMetalView: UIViewRepresentable {
             pipelineState = nil
             parameterNames = []
             parameterDefaults = [:]
+            savedParameterValues = [:]
         }
         
-        func setupMetal(shaderCode: String) {
+        func setupMetal(shaderCode: String, savedValues: [String: Float] = [:]) {
             self.currentShaderCode = shaderCode
+            self.savedParameterValues = savedValues
             createPipelineState(shaderCode: shaderCode)
         }
         
-        func updateShader(_ shaderCode: String) {
-            guard shaderCode != currentShaderCode else { return }
-            currentShaderCode = shaderCode
-            createPipelineState(shaderCode: shaderCode)
+        func updateShader(_ shaderCode: String, savedValues: [String: Float] = [:]) {
+            let codeChanged = shaderCode != currentShaderCode
+            let valuesChanged = savedValues != savedParameterValues
+            guard codeChanged || valuesChanged else { return }
+            
+            savedParameterValues = savedValues
+            
+            if codeChanged {
+                currentShaderCode = shaderCode
+                createPipelineState(shaderCode: shaderCode)
+            }
         }
         
         func createPipelineState(shaderCode: String) {
@@ -580,9 +601,12 @@ struct ThumbnailMetalView: UIViewRepresentable {
             encoder.setRenderPipelineState(pipelineState)
             encoder.setFragmentBytes(&time, length: MemoryLayout<Float>.size, index: 0)
             
-            // Użyj domyślnych wartości parametrów dla miniaturek
+            // Użyj zapisanych wartości parametrów, a jeśli nie ma - domyślnych
             if !parameterNames.isEmpty {
-                var paramValues: [Float] = parameterNames.map { parameterDefaults[$0] ?? 0.5 }
+                var paramValues: [Float] = parameterNames.map { name in
+                    // Najpierw sprawdź zapisane wartości, potem domyślne
+                    savedParameterValues[name] ?? parameterDefaults[name] ?? 0.5
+                }
                 if !paramValues.isEmpty {
                     encoder.setFragmentBytes(&paramValues, length: MemoryLayout<Float>.size * paramValues.count, index: 1)
                 }

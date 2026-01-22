@@ -81,6 +81,17 @@ final class ShaderEntity {
         set { categoryRawValue = newValue.rawValue }
     }
     
+    /// Hash of current parameter values - used to trigger thumbnail refresh
+    var parametersHash: Int {
+        guard let params = parameters else { return 0 }
+        var hasher = Hasher()
+        for param in params.sorted(by: { $0.name < $1.name }) {
+            hasher.combine(param.name)
+            hasher.combine(param.floatValue)
+        }
+        return hasher.finalize()
+    }
+    
     // MARK: - Initialization
     
     init(
