@@ -22,6 +22,9 @@ struct ShaderGridMainView: View {
     var selectedFolder: ShaderFolder?
     var selectedCategory: ShaderCategory?
     
+    // Search text for filtering
+    var searchText: String = ""
+    
     // Community shaders mode
     @Binding var showingCommunityShaders: Bool
     
@@ -50,6 +53,14 @@ struct ShaderGridMainView: View {
         // Filter by category if selected
         if let category = selectedCategory, category != .all {
             result = result.filter { $0.category == category }
+        }
+        
+        // Filter by search text
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.shaderDescription.localizedCaseInsensitiveContains(searchText)
+            }
         }
         
         return result

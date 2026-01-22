@@ -33,10 +33,12 @@ struct FolderCategoryPanel: View {
     // Parameters VM for resetting to defaults
     var parametersVM: ShaderParametersViewModel?
     
+    // Search text binding for filtering shaders
+    @Binding var searchText: String
+    
     @State private var selectedTab: PanelTab = .folder
     @State private var showingNewFolderSheet: Bool = false
     @State private var newFolderName: String = ""
-    @State private var searchText: String = ""
     
     enum PanelTab: String, CaseIterable {
         case folder = "Folder"
@@ -607,7 +609,8 @@ struct CategoryRowItem: View {
         syncService: ShaderSyncService(),
         showingCommunityShaders: .constant(false),
         automationManager: nil,
-        parametersVM: nil
+        parametersVM: nil,
+        searchText: .constant("")
     )
     .modelContainer(for: [ShaderFolder.self], inMemory: true)
 }

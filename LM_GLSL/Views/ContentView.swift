@@ -33,6 +33,7 @@ struct ContentView: View {
     // Grid view specific states
     @State private var selectedFolder: ShaderFolder?
     @State private var selectedGridCategory: ShaderCategory?
+    @State private var gridSearchText: String = ""
     
     // Community shaders mode
     @State private var showingCommunityShaders: Bool = false
@@ -136,6 +137,7 @@ struct ContentView: View {
                                 viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
                                 selectedCategory: selectedGridCategory,
+                                searchText: gridSearchText,
                                 showingCommunityShaders: $showingCommunityShaders
                             )
                             .frame(width: geometry.size.width * 0.8)
@@ -152,7 +154,8 @@ struct ContentView: View {
                                 syncService: syncService,
                                 showingCommunityShaders: $showingCommunityShaders,
                                 automationManager: automationManager,
-                                parametersVM: parametersVM
+                                parametersVM: parametersVM,
+                                searchText: $gridSearchText
                             )
                             .frame(width: geometry.size.width * 0.2)
                         }
@@ -170,6 +173,7 @@ struct ContentView: View {
                                 viewMode: $viewMode,
                                 selectedFolder: selectedFolder,
                                 selectedCategory: selectedGridCategory,
+                                searchText: gridSearchText,
                                 showingCommunityShaders: $showingCommunityShaders
                             )
                             
