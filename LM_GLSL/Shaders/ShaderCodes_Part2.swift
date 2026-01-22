@@ -10,6 +10,7 @@ import Foundation
 // MARK: - Retro Category
 
 let matrixRainCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param density "Density" range(10.0, 50.0) default(20.0)
 // @param dropLength "Drop Length" range(10.0, 50.0) default(30.0)
@@ -194,10 +195,11 @@ color = color * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) color = clamp(color, 0.0, 1.0);
 
-return float4(color, 1.0);
+return float4(color * masterOpacity, masterOpacity);
 """
 
 let crtTvCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(1.0)
 // @param scanlineFrequency "Scanline Frequency" range(100.0, 800.0) default(400.0)
 // @param scanlineIntensity "Scanline Intensity" range(0.0, 0.5) default(0.1)
@@ -382,10 +384,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let glitchCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param glitchFrequency "Glitch Frequency" range(5.0, 50.0) default(20.0)
 // @param glitchIntensity "Glitch Intensity" range(0.0, 0.2) default(0.05)
@@ -572,10 +575,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let synthwaveGridCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param horizon "Horizon" range(0.2, 0.6) default(0.4)
 // @param gridDensity "Grid Density" range(1.0, 20.0) default(10.0)
@@ -765,10 +769,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let vhsDistortionCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param noiseAmount "Noise Amount" range(0.0, 0.2) default(0.1)
 // @param waveStrength "Wave Strength" range(0.0, 0.05) default(0.01)
@@ -959,10 +964,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let scanlinesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param scanlineFrequency "Scanline Frequency" range(100.0, 800.0) default(300.0)
 // @param scanlineIntensity "Scanline Intensity" range(0.0, 1.0) default(0.5)
@@ -1156,10 +1162,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let pixelSortCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param threshold "Threshold" range(0.0, 1.0) default(0.5)
 // @param thresholdRange "Threshold Range" range(0.0, 0.5) default(0.3)
@@ -1368,10 +1375,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let asciiArtCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param gridSize "Grid Size" range(10.0, 60.0) default(30.0)
 // @param characterDensity "Character Density" range(0.2, 0.8) default(0.5)
@@ -1553,10 +1561,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let commodore64Code = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.1)
 // @param pixelDensity "Pixel Density" range(20.0, 80.0) default(40.0)
 // @param colorCount "Color Count" range(2.0, 8.0) default(5.0)
@@ -1750,12 +1759,13 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 // MARK: - Psychedelic Category
 
 let liquidMetalCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.3)
 // @param scale "Scale" range(1.0, 8.0) default(4.0)
 // @param iterations "Iterations" range(3.0, 12.0) default(8.0)
@@ -1948,10 +1958,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let neonPulseCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 5.0) default(3.0)
 // @param pulseFrequency "Pulse Frequency" range(1.0, 20.0) default(10.0)
 // @param pulseIntensity "Pulse Intensity" range(1.0, 10.0) default(5.0)
@@ -2136,10 +2147,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let fractalWarpCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 1.0) default(0.1)
 // @param scale "Scale" range(1.0, 8.0) default(4.0)
 // @param iterations "Iterations" range(3.0, 15.0) default(10.0)
@@ -2329,10 +2341,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let colorExplosionCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 10.0) default(5.0)
 // @param explosionPower "Explosion Power" range(1.0, 5.0) default(2.0)
 // @param rayCount "Ray Count" range(5.0, 20.0) default(10.0)
@@ -2523,10 +2536,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let acidTripCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param iterations "Iterations" range(2.0, 8.0) default(5.0)
 // @param foldSize "Fold Size" range(0.2, 1.0) default(0.5)
@@ -2722,10 +2736,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let mushroomVisionCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 5.0) default(3.0)
 // @param rippleFrequency "Ripple Frequency" range(5.0, 30.0) default(15.0)
 // @param spiralAmount "Spiral Amount" range(1.0, 10.0) default(5.0)
@@ -2913,10 +2928,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let morphingShapesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param morphRate "Morph Rate" range(0.0, 2.0) default(1.0)
 // @param shapeSize "Shape Size" range(0.2, 0.8) default(0.5)
@@ -3115,10 +3131,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let colorFlowCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(1.0)
 // @param waveCountX "Wave Count X" range(1.0, 10.0) default(5.0)
 // @param waveCountY "Wave Count Y" range(1.0, 10.0) default(3.0)
@@ -3324,10 +3341,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let dreamWeaverCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(2.0)
 // @param scale "Scale" range(1.0, 5.0) default(3.0)
 // @param waveFrequency "Wave Frequency" range(2.0, 10.0) default(5.0)
@@ -3519,12 +3537,13 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 // MARK: - Abstract Category
 
 let metaballsCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param ballCount "Ball Count" range(2.0, 8.0) default(5.0)
 // @param ballSize "Ball Size" range(0.05, 0.3) default(0.1)
@@ -3717,10 +3736,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let sineWavesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param waveFrequency "Wave Frequency" range(5.0, 20.0) default(10.0)
 // @param waveAmplitude "Wave Amplitude" range(0.05, 0.3) default(0.1)
@@ -3924,10 +3944,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let moirePatternCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param patternScale "Pattern Scale" range(10.0, 100.0) default(50.0)
 // @param centerOffset "Center Offset" range(0.0, 0.5) default(0.1)
@@ -4147,10 +4168,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let inkBlotCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param blobScale "Blob Scale" range(1.0, 10.0) default(3.0)
 // @param blobCount "Blob Count" range(2.0, 10.0) default(5.0)
@@ -4364,10 +4386,11 @@ if (vignette > 0.5) {
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let rorschachCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(0.5)
 // @param patternScale "Pattern Scale" range(5.0, 30.0) default(10.0)
 // @param threshold "Threshold" range(0.2, 0.6) default(0.4)
@@ -4581,10 +4604,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let fabricCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param weaveScale "Weave Scale" range(5.0, 50.0) default(20.0)
 // @param threadThickness "Thread Thickness" range(0.5, 2.0) default(1.0)
@@ -4805,10 +4829,11 @@ if (vignette > 0.5) {
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let marbleCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param patternScale "Pattern Scale" range(1.0, 10.0) default(5.0)
 // @param veinIntensity "Vein Intensity" range(0.0, 1.0) default(0.5)
@@ -5035,10 +5060,11 @@ if (vignette > 0.5) {
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let woodGrainCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param grainScale "Grain Scale" range(5.0, 30.0) default(10.0)
 // @param ringFrequency "Ring Frequency" range(1.0, 10.0) default(5.0)
@@ -5261,5 +5287,5 @@ if (vignette > 0.5) {
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """

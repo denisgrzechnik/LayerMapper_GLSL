@@ -10,6 +10,7 @@ import Foundation
 // MARK: - Basic Category
 
 let rainbowGradientCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.2)
 // @param frequency "Frequency" range(0.5, 10.0) default(6.28318)
 // @param saturation "Saturation" range(0.0, 1.0) default(0.5)
@@ -190,10 +191,11 @@ col = col * (1.0 - shadowIntensity * 0.5) + highlightIntensity * 0.2;
 
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let plasmaCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(1.0, 20.0) default(8.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param complexity "Complexity" range(1.0, 5.0) default(1.0)
@@ -384,10 +386,11 @@ if (grid > 0.5) {
 if (vignette > 0.5) col *= 1.0 - length(uv - 0.5) * vignetteSize * 1.2;
 if (smooth > 0.5) col = clamp(col, 0.0, 1.0);
 
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let noiseCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(1.0, 50.0) default(10.0)
 // @param speed "Speed" range(0.0, 5.0) default(1.0)
 // @param grainSize "Grain Size" range(0.1, 2.0) default(1.0)
@@ -632,12 +635,13 @@ if (edgeFade > 0.01) {
 col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 // MARK: - Tunnels Category
 
 let warpTunnelCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 5.0) default(2.0)
 // @param rotationSpeed "Rotation Speed" range(0.0, 3.0) default(0.0)
 // @param zoom "Zoom" range(0.5, 3.0) default(1.0)
@@ -871,10 +875,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let starTunnelCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 5.0) default(1.0)
 // @param starPoints "Star Points" range(3.0, 12.0) default(5.0)
 // @param starSharpness "Star Sharpness" range(0.1, 2.0) default(1.0)
@@ -1106,10 +1111,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let hypnoticSpiralCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 10.0) default(3.0)
 // @param spiralDensity "Spiral Density" range(1.0, 30.0) default(10.0)
 // @param armCount "Arm Count" range(1.0, 10.0) default(3.0)
@@ -1333,12 +1339,13 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 // MARK: - Nature Category
 
 let fireCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.5)
 // @param intensity "Intensity" range(0.5, 3.0) default(1.0)
 // @param turbulence "Turbulence" range(1.0, 10.0) default(3.0)
@@ -1576,10 +1583,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let oceanWavesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param waveHeight "Wave Height" range(0.0, 0.3) default(0.1)
 // @param waveFrequency "Wave Frequency" range(1.0, 10.0) default(3.0)
@@ -1820,10 +1828,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let auroraCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param waveFrequency "Wave Frequency" range(1.0, 10.0) default(3.0)
 // @param waveHeight "Wave Height" range(0.0, 0.3) default(0.1)
@@ -2050,10 +2059,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let electricStormCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 10.0) default(5.0)
 // @param boltCount "Bolt Count" range(1.0, 10.0) default(5.0)
 // @param boltWidth "Bolt Width" range(0.01, 0.1) default(0.02)
@@ -2271,12 +2281,13 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 // MARK: - Geometric Category
 
 let kaleidoscopeCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param segments "Segments" range(2.0, 16.0) default(8.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param zoom "Zoom" range(0.5, 5.0) default(1.0)
@@ -2513,10 +2524,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let hexagonGridCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(2.0, 30.0) default(10.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param lineWidth "Line Width" range(0.01, 0.1) default(0.02)
@@ -2756,10 +2768,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let voronoiCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(1.0, 15.0) default(5.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param cellMovement "Cell Movement" range(0.0, 1.0) default(0.3)
@@ -3023,10 +3036,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let fractalCirclesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param circleCount "Circle Count" range(2.0, 15.0) default(8.0)
 // @param baseRadius "Base Radius" range(0.1, 1.0) default(0.5)
@@ -3271,10 +3285,11 @@ if (edgeFade > 0.0) {
 col = pow(col, float3(1.0 / gamma));
 
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let infiniteCubesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param cubeCount "Cube Count" range(3.0, 20.0) default(10.0)
 // @param lineWidth "Line Width" range(0.005, 0.05) default(0.02)
@@ -3500,10 +3515,11 @@ if (edgeFade > 0.0) {
 // Gamma correction
 col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let rotatingTrianglesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Rotation Speed" range(0.0, 5.0) default(1.0)
 // @param triangleCount "Triangle Count" range(2.0, 8.0) default(3.0)
 // @param size "Size" range(0.1, 0.8) default(0.3)
@@ -3730,10 +3746,11 @@ if (edgeFade > 0.0) {
 // Gamma correction
 col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let penroseTilesCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(1.0, 15.0) default(5.0)
 // @param speed "Speed" range(0.0, 1.0) default(0.2)
 // @param lineWidth "Line Width" range(0.01, 0.1) default(0.05)
@@ -3949,10 +3966,11 @@ if (edgeFade > 0.0) {
 // Gamma correction
 col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let truchetPatternCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param scale "Scale" range(2.0, 30.0) default(10.0)
 // @param speed "Speed" range(0.0, 3.0) default(1.0)
 // @param lineWidth "Line Width" range(0.01, 0.15) default(0.05)
@@ -4187,10 +4205,11 @@ if (edgeFade > 0.0) {
 // Gamma correction
 col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
 let sacredGeometryCode = """
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
 // @param speed "Speed" range(0.0, 2.0) default(0.3)
 // @param circleCount "Circle Count" range(4.0, 12.0) default(6.0)
 // @param circleRadius "Circle Radius" range(0.3, 0.7) default(0.5)
@@ -4452,6 +4471,6 @@ if (edgeFade > 0.0) {
 // Gamma correction
 col = pow(max(col, 0.0), float3(1.0 / gamma));
 col = clamp(col, 0.0, 1.0);
-return float4(col, 1.0);
+return float4(col * masterOpacity, masterOpacity);
 """
 
