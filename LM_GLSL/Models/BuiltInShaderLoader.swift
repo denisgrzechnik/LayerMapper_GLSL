@@ -13,7 +13,7 @@ import SwiftData
 class BuiltInShaderLoader {
     
     private let modelContext: ModelContext
-    private let userDefaultsKey = "BuiltInShadersLoaded_v39"
+    private let userDefaultsKey = "BuiltInShadersLoaded_v41"
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
