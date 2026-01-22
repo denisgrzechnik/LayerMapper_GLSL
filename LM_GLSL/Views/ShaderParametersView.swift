@@ -1071,7 +1071,6 @@ struct KnobsPanel: View {
     let parameters: [ShaderParameter]  // NIE @Binding!
     var onUpdate: ((UUID, Float) -> Void)? = nil  // Callback do aktualizacji ViewModel
     var onValueChanged: ((String, Float) -> Void)? = nil
-    var onMasterOpacityChanged: ((Float) -> Void)? = nil  // Special callback for Master Opacity
     
     // Fader colors for 8 faders
     private let faderColors: [Color] = [
@@ -1088,11 +1087,19 @@ struct KnobsPanel: View {
     // Master opacity color - white/gray
     private let masterOpacityColor = Color.white
     
-    @State private var masterOpacity: Float = 1.0
+    // Find masterOpacity parameter from shader
+    private var masterOpacityParam: ShaderParameter? {
+        parameters.first { $0.name == "masterOpacity" }
+    }
+    
+    // Filter out masterOpacity from slider params for knobs/faders
+    private var nonMasterSliderParams: [ShaderParameter] {
+        parameters.filter { $0.type == .slider && $0.name != "masterOpacity" }
+    }
     
     var body: some View {
         GeometryReader { geometry in
-            let sliderParams = parameters.filter { $0.type == .slider }
+            let sliderParams = nonMasterSliderParams  // Use filtered params (without masterOpacity)
             let faderWidth: CGFloat = 36
             let faderSpacing: CGFloat = 4
             let masterFaderWidth: CGFloat = 44
@@ -1104,7 +1111,7 @@ struct KnobsPanel: View {
                 // Knobs section (12 knobs in 4 columns x 3 rows)
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 10) {
-                        // Show first 12 parameters as knobs
+                        // Show first 12 parameters as knobs (excluding masterOpacity)
                         ForEach(0..<12, id: \.self) { index in
                             if index < sliderParams.count {
                                 OptimizedKnobView(
@@ -1136,9 +1143,9 @@ struct KnobsPanel: View {
                 
                 // Faders section (8 vertical faders + 1 Master Opacity)
                 HStack(spacing: faderSpacing) {
-                    // 8 parameter faders
+                    // 8 parameter faders (params 13-20, excluding masterOpacity)
                     ForEach(0..<8, id: \.self) { faderIndex in
-                        let paramIndex = 12 + faderIndex  // Faders use params 13-20
+                        let paramIndex = 12 + faderIndex  // Faders use params 13-20 from filtered list
                         if paramIndex < sliderParams.count {
                             VerticalFader(
                                 param: sliderParams[paramIndex],
@@ -1163,15 +1170,25 @@ struct KnobsPanel: View {
                         .fill(Color(white: 0.3))
                         .frame(width: 1)
                     
-                    // Master Opacity fader
-                    MasterOpacityFader(
-                        value: $masterOpacity,
-                        color: masterOpacityColor,
-                        width: masterFaderWidth,
-                        onUpdate: { newValue in
-                            onMasterOpacityChanged?(newValue)
-                        }
-                    )
+                    // Master Opacity fader - connected to actual masterOpacity parameter
+                    if let masterParam = masterOpacityParam {
+                        MasterOpacityFaderConnected(
+                            param: masterParam,
+                            color: masterOpacityColor,
+                            width: masterFaderWidth,
+                            onUpdate: { newValue in
+                                onUpdate?(masterParam.id, newValue)
+                                onValueChanged?(masterParam.name, newValue)
+                            }
+                        )
+                    } else {
+                        // Fallback placeholder if no masterOpacity param
+                        PlaceholderFader(
+                            label: "MASTER",
+                            color: masterOpacityColor,
+                            width: masterFaderWidth
+                        )
+                    }
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 6)
@@ -1222,6 +1239,58 @@ struct MasterOpacityFader: View {
                             let newValue = 1.0 - Float(gesture.location.y / geometry.size.height)
                             value = max(0, min(1, newValue))
                             onUpdate(value)
+                        }
+                )
+            }
+            .frame(width: width - 4)
+        }
+        .frame(width: width)
+    }
+}
+
+// Master Opacity Fader connected to shader parameter
+struct MasterOpacityFaderConnected: View {
+    let param: ShaderParameter
+    let color: Color
+    let width: CGFloat
+    let onUpdate: (Float) -> Void
+    
+    // Dark gray color for Master fader
+    private let masterColor = Color(white: 0.5)
+    
+    // Normalized value (0-1) from parameter
+    private var normalizedValue: Float {
+        (param.currentValue - param.minValue) / (param.maxValue - param.minValue)
+    }
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            // Master label - same style as other faders
+            Text("MASTER")
+                .font(.system(size: 6, weight: .medium))
+                .foregroundColor(.gray)
+                .lineLimit(1)
+                .frame(width: width)
+            
+            // Fader track - no handle, just fill
+            GeometryReader { geometry in
+                ZStack(alignment: .bottom) {
+                    // Track background
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(white: 0.15))
+                    
+                    // Value fill - dark gray (no handle)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(masterColor.opacity(0.6))
+                        .frame(height: geometry.size.height * CGFloat(normalizedValue))
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            let y = min(max(gesture.location.y, 0), geometry.size.height)
+                            let normalized = 1.0 - Float(y / geometry.size.height)
+                            let newValue = param.minValue + normalized * (param.maxValue - param.minValue)
+                            onUpdate(newValue)
                         }
                 )
             }
