@@ -13,7 +13,7 @@ import SwiftData
 class BuiltInShaderLoader {
     
     private let modelContext: ModelContext
-    private let userDefaultsKey = "BuiltInShadersLoaded_v43"
+    private let userDefaultsKey = "BuiltInShadersLoaded_v45"
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -28,10 +28,10 @@ class BuiltInShaderLoader {
     /// Ładuje wszystkie wbudowane shadery jeśli nie zostały jeszcze załadowane
     func loadIfNeeded() {
         guard !areShadersLoaded else {
-            print("✅ Built-in shaders v43 already loaded - skipping")
+            print("✅ Built-in shaders v45 already loaded - skipping")
             return
         }
-        print("📦 Loading built-in shaders v43...")
+        print("📦 Loading built-in shaders v45...")
         // First delete old built-in shaders to avoid duplicates
         deleteAllBuiltInShaders()
         loadAllBuiltInShaders()
@@ -162,6 +162,16 @@ class BuiltInShaderLoader {
         print("🔵 Loading Part 15 Surreal Shaders...")
         loadPart15SurrealShaders()
         print("✅ Part 15 Shaders loaded")
+
+        // Part 16: Crystal & Prismatic Effects
+        print("🔵 Loading Part 16 Crystal Shaders...")
+        loadPart16CrystalShaders()
+        print("✅ Part 16 Shaders loaded")
+
+        // Part 17: Advanced Visual Effects
+        print("🔵 Loading Part 17 Advanced Shaders...")
+        loadPart17AdvancedShaders()
+        print("✅ Part 17 Shaders loaded")
 
         do {
             try modelContext.save()
@@ -600,6 +610,56 @@ class BuiltInShaderLoader {
         loadShader(name: "Graffiti Tag", code: graffitiTagCode, category: .retro)
         loadShader(name: "Zen Garden", code: zenGardenCode, category: .nature)
         loadShader(name: "Mosaic", code: mosaicCode, category: .patterns)
+    }
+    
+    // MARK: - Part 16: Crystal & Prismatic Effects
+    
+    private func loadPart16CrystalShaders() {
+        loadShader(name: "Crystal Prism", code: crystalPrismCode, category: .abstract)
+        loadShader(name: "Diamond Sparkle", code: diamondSparkleCode, category: .abstract)
+        loadShader(name: "Ice Formation", code: iceFormationCode, category: .nature)
+        loadShader(name: "Gem Cut", code: gemCutCode, category: .abstract)
+        loadShader(name: "Stained Glass Window", code: stainedGlassWindowCode, category: .patterns)
+        loadShader(name: "Hologram Projection", code: hologramProjectionCode, category: .tech)
+        loadShader(name: "Laser Grid Matrix", code: laserGridMatrixCode, category: .neon)
+        loadShader(name: "Aurora Wave", code: auroraWaveCode, category: .nature)
+        loadShader(name: "Neon Tube Sign", code: neonTubeSignCode, category: .neon)
+        loadShader(name: "Mirror Hall", code: mirrorHallCode, category: .abstract)
+        loadShader(name: "Holographic Interference", code: holographicInterferenceCode, category: .tech)
+        loadShader(name: "Liquid Metal Flow", code: liquidMetalFlowCode, category: .psychedelic)
+        loadShader(name: "Plasma Orb", code: plasmaOrbCode, category: .fireEnergy)
+        loadShader(name: "Neon City Scape", code: neonCityScapeCode, category: .neon)
+        loadShader(name: "Morphing Polygons", code: morphingPolygonsCode, category: .geometric)
+        loadShader(name: "Digital Rain Effect", code: digitalRainCode, category: .retro)
+        loadShader(name: "Cellular Automata", code: cellularAutomataCode, category: .patterns)
+        loadShader(name: "Energy Field", code: energyFieldCode, category: .fireEnergy)
+        loadShader(name: "Smoke Simulation", code: smokeSimCode, category: .nature)
+        loadShader(name: "Glitch Artistic", code: glitchArtisticCode, category: .retro)
+    }
+    
+    // MARK: - Part 17: Advanced Visual Effects
+    
+    private func loadPart17AdvancedShaders() {
+        loadShader(name: "Hexagonal Grid", code: hexagonalGridCode, category: .geometric)
+        loadShader(name: "Voronoi Cells", code: voronoiCellsCode, category: .patterns)
+        loadShader(name: "Sine Wave Matrix", code: sineWaveMatrixCode, category: .patterns)
+        loadShader(name: "Cosmic Spiral Arm", code: cosmicSpiralArmCode, category: .cosmic)
+        loadShader(name: "Lightning Bolt Advanced", code: lightningBoltAdvancedCode, category: .fireEnergy)
+        loadShader(name: "Circular Rings", code: circularRingsCode, category: .geometric)
+        loadShader(name: "Floating Dots", code: floatingDotsCode, category: .abstract)
+        loadShader(name: "Liquid Blob", code: liquidBlobCode, category: .organic)
+        loadShader(name: "Geometric Tunnel", code: geometricTunnelCode, category: .tunnels)
+        loadShader(name: "Neon Letter", code: neonLetterCode, category: .neon)
+        loadShader(name: "Rotating Mandala", code: rotatingMandalaCode, category: .psychedelic)
+        loadShader(name: "Radial Burst", code: radialBurstCode, category: .fireEnergy)
+        loadShader(name: "Ripple Interference", code: rippleInterferenceCode, category: .patterns)
+        loadShader(name: "Checkerboard Motion", code: checkerboardMotionCode, category: .patterns)
+        loadShader(name: "Concentric Squares", code: concentricSquaresCode, category: .geometric)
+        loadShader(name: "Diamond Pattern", code: diamondPatternCode, category: .patterns)
+        loadShader(name: "Star Field", code: starFieldCode, category: .cosmic)
+        loadShader(name: "Laser Beam", code: laserBeamCode, category: .neon)
+        loadShader(name: "Audio Visualizer", code: audioVisualizerCode, category: .abstract)
+        loadShader(name: "Polygon Morph", code: polygonMorphCode, category: .abstract)
     }
     
     // MARK: - Helper

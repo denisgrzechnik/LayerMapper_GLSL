@@ -53,6 +53,8 @@
 		58C9CEAF2F21119B0074BF12 /* ShaderCodes_Part15.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CEAC2F21119B0074BF12 /* ShaderCodes_Part15.swift */; };
 		58C9CEB02F21119B0074BF12 /* ShaderCodes_Part11.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CEA82F21119B0074BF12 /* ShaderCodes_Part11.swift */; };
 		58C9CEB12F21119B0074BF12 /* ShaderCodes_Part13.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CEAA2F21119B0074BF12 /* ShaderCodes_Part13.swift */; };
+		58C9CEB32F22A2840074BF12 /* ShaderCodes_Part16.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CEB22F22A2840074BF12 /* ShaderCodes_Part16.swift */; };
+		58C9CEB52F22AC1C0074BF12 /* ShaderCodes_Part17.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C9CEB42F22AC1C0074BF12 /* ShaderCodes_Part17.swift */; };
 		58CK00012F200001000CK001 /* CloudKitShaderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00022F200001000CK001 /* CloudKitShaderService.swift */; };
 		58CK00032F200001000CK002 /* SharedShaderGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00042F200001000CK002 /* SharedShaderGalleryView.swift */; };
 		58CK00052F200001000CK003 /* PublishShaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58CK00062F200001000CK003 /* PublishShaderView.swift */; };
@@ -109,6 +111,8 @@
 		58C9CEAA2F21119B0074BF12 /* ShaderCodes_Part13.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part13.swift; sourceTree = "<group>"; };
 		58C9CEAB2F21119B0074BF12 /* ShaderCodes_Part14.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part14.swift; sourceTree = "<group>"; };
 		58C9CEAC2F21119B0074BF12 /* ShaderCodes_Part15.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part15.swift; sourceTree = "<group>"; };
+		58C9CEB22F22A2840074BF12 /* ShaderCodes_Part16.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part16.swift; sourceTree = "<group>"; };
+		58C9CEB42F22AC1C0074BF12 /* ShaderCodes_Part17.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShaderCodes_Part17.swift; sourceTree = "<group>"; };
 		58CK00022F200001000CK001 /* CloudKitShaderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitShaderService.swift; sourceTree = "<group>"; };
 		58CK00042F200001000CK002 /* SharedShaderGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedShaderGalleryView.swift; sourceTree = "<group>"; };
 		58CK00062F200001000CK003 /* PublishShaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishShaderView.swift; sourceTree = "<group>"; };
@@ -208,6 +212,8 @@
 				58C9CEAA2F21119B0074BF12 /* ShaderCodes_Part13.swift */,
 				58C9CEAB2F21119B0074BF12 /* ShaderCodes_Part14.swift */,
 				58C9CEAC2F21119B0074BF12 /* ShaderCodes_Part15.swift */,
+				58C9CEB22F22A2840074BF12 /* ShaderCodes_Part16.swift */,
+				58C9CEB42F22AC1C0074BF12 /* ShaderCodes_Part17.swift */,
 			);
 			path = Shaders;
 			sourceTree = "<group>";
@@ -327,6 +333,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				58C5620A2F0F38940094CB27 /* ShaderSyncService.swift in Sources */,
+				58C9CEB52F22AC1C0074BF12 /* ShaderCodes_Part17.swift in Sources */,
+				58C9CEB32F22A2840074BF12 /* ShaderCodes_Part16.swift in Sources */,
 				5821BDAD2F146F5900E75E1D /* Logger.swift in Sources */,
 				58C562152F129D9B0094CB27 /* ShaderGridMainView.swift in Sources */,
 				58C5620B2F0F38940094CB27 /* ShaderSyncModels.swift in Sources */,
