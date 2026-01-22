@@ -12,20 +12,110 @@ import Foundation
 
 /// Electric Arc Advanced
 let electricArcAdvancedCode = """
-// @param arcCount "Liczba łuków" range(1, 8) default(3)
-// @param arcThickness "Grubość łuku" range(0.01, 0.05) default(0.02)
-// @param jitterAmount "Drżenie" range(0.0, 0.2) default(0.1)
-// @param glowIntensity "Intensywność blasku" range(0.0, 1.0) default(0.7)
-// @param branchChance "Szansa rozgałęzienia" range(0.0, 0.5) default(0.2)
-// @toggle animated "Animowany" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param arcCount "Arc Count" range(1, 8) default(3)
+// @param arcThickness "Arc Thickness" range(0.01, 0.05) default(0.02)
+// @param jitterAmount "Jitter Amount" range(0.0, 0.2) default(0.1)
+// @param branchChance "Branch Chance" range(0.0, 0.5) default(0.2)
+// @param energyLevel "Energy Level" range(0.0, 1.0) default(0.7)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.7)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.7)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.3)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.8)
+// @toggle animated "Animated" default(true)
+// @toggle reactive "Reactive" default(false)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Distortion
+if (distortion > 0.0) {
+    p += float2(sin(p.y * 10.0 + timeVal), cos(p.x * 10.0 + timeVal)) * distortion * 0.1;
+}
+
+// Base color
 float3 col = float3(0.02, 0.02, 0.05);
+float3 arcColor1 = float3(color1R, color1G, color1B);
+float3 arcColor2 = float3(color2R, color2G, color2B);
+
+// Electric arcs
 for (int arc = 0; arc < 8; arc++) {
     if (arc >= int(arcCount)) break;
     float fa = float(arc);
-    float2 start = float2(-0.8, (fa / float(arcCount) - 0.5) * 1.5);
-    float2 end = float2(0.8, (fa / float(arcCount) - 0.5) * 1.5 + sin(iTime + fa) * 0.2);
-    float segments = 20.0;
+    float2 start = float2(-0.8, (fa / arcCount - 0.5) * 1.5);
+    float2 end = float2(0.8, (fa / arcCount - 0.5) * 1.5 + sin(timeVal + fa) * 0.2);
     float t = (p.x - start.x) / (end.x - start.x);
     if (t >= 0.0 && t <= 1.0) {
         float baseY = mix(start.y, end.y, t);
@@ -33,177 +123,1132 @@ for (int arc = 0; arc < 8; arc++) {
         for (int j = 1; j < 8; j++) {
             float fj = float(j);
             float freq = pow(2.0, fj);
-            float timeOffset = animated > 0.5 ? iTime * (5.0 + fj) : fa;
+            float timeOffset = timeVal * (5.0 + fj);
             jitter += sin(t * freq * 10.0 + timeOffset) * jitterAmount / freq;
         }
         float arcY = baseY + jitter;
         float d = abs(p.y - arcY);
         float arcLine = smoothstep(arcThickness, 0.0, d);
-        float glow = exp(-d * 20.0) * glowIntensity;
-        float3 arcColor = float3(0.5, 0.7, 1.0);
-        col += arcLine * arcColor;
-        col += glow * arcColor * 0.5;
+        
+        // Rainbow color option
+        float3 currentArcColor = rainbow > 0.5 ? 
+            0.5 + 0.5 * cos(timeVal + t * 6.28 + float3(0.0, 2.0, 4.0)) :
+            mix(arcColor1, arcColor2, t);
+        
+        col += arcLine * currentArcColor * energyLevel;
+        
+        // Glow effect
+        if (glow > 0.5) {
+            float glowVal = exp(-d * 20.0) * glowIntensity;
+            col += glowVal * currentArcColor * 0.5;
+        }
+        
+        // Branch effect
         if (branchChance > 0.0) {
             float branchSeed = fract(sin(t * 100.0 + fa) * 43758.5453);
             if (branchSeed < branchChance) {
                 float branchY = arcY + (branchSeed - branchChance * 0.5) * 0.3;
                 float branchD = abs(p.y - branchY) + abs(p.x - (start.x + t * (end.x - start.x))) * 2.0;
-                float branch = smoothstep(arcThickness * 0.5, 0.0, branchD);
-                col += branch * arcColor * 0.5;
+                float branchLine = smoothstep(arcThickness * 0.5, 0.0, branchD);
+                col += branchLine * currentArcColor * 0.5;
             }
         }
     }
 }
-return float4(col, 1.0);
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (1.0 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.5), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edge = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edge));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Reactive effect
+if (reactive > 0.5) {
+    col *= 1.0 + sin(timeVal * 10.0) * 0.2;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    float3 shifted = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+    col = shifted;
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma correction
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon effect
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel effect
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth/clamp
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+// Master opacity
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Plasma Ball
 let plasmaBallCode = """
-// @param streamCount "Liczba strumieni" range(3, 12) default(6)
-// @param streamWidth "Szerokość strumienia" range(0.02, 0.1) default(0.04)
-// @param coreSize "Rozmiar rdzenia" range(0.1, 0.3) default(0.15)
-// @param turbulence "Turbulencja" range(0.0, 1.0) default(0.5)
-// @param rotationSpeed "Prędkość rotacji" range(0.0, 3.0) default(1.0)
-// @toggle touchPoint "Punkt dotyku" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param streamCount "Stream Count" range(3, 12) default(6)
+// @param streamWidth "Stream Width" range(0.02, 0.1) default(0.04)
+// @param coreSize "Core Size" range(0.1, 0.3) default(0.15)
+// @param turbulence "Turbulence" range(0.0, 1.0) default(0.5)
+// @param rotationSpeed "Rotation Speed" range(0.0, 3.0) default(1.0)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.7)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.8)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.4)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.4)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.6)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle touchPoint "Touch Point" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(true)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Distortion
+if (distortion > 0.0) {
+    p += float2(sin(p.y * 10.0 + timeVal), cos(p.x * 10.0 + timeVal)) * distortion * 0.1;
+}
+
 float r = length(p);
 float a = atan2(p.y, p.x);
+
+// Colors from params
+float3 plasmaColor1 = float3(color1R, color1G, color1B);
+float3 plasmaColor2 = float3(color2R, color2G, color2B);
+
+// Base color
 float3 col = float3(0.02, 0.0, 0.03);
+
+// Sphere boundary
 float sphere = smoothstep(0.95, 0.9, r);
 col = mix(col, float3(0.05, 0.02, 0.08), sphere);
+
+// Sphere edge glow
 float sphereEdge = smoothstep(0.02, 0.0, abs(r - 0.9));
 col += sphereEdge * float3(0.3, 0.2, 0.4);
+
+// Plasma streams
 for (int i = 0; i < 12; i++) {
     if (i >= int(streamCount)) break;
     float fi = float(i);
-    float streamAngle = fi * 6.28318 / float(streamCount) + iTime * rotationSpeed;
+    float streamAngle = fi * 6.28318 / streamCount + timeVal * rotationSpeed;
     float2 streamDir = float2(cos(streamAngle), sin(streamAngle));
     float2 touchPos = touchPoint > 0.5 ? float2(0.5, 0.3) : streamDir * 0.8;
     float2 toP = p;
     float streamT = dot(toP, streamDir);
     if (streamT > 0.0) {
         float perpDist = length(toP - streamDir * streamT);
-        float noise = sin(streamT * 20.0 + iTime * 5.0 + fi * 10.0) * turbulence * 0.05;
-        perpDist += noise;
+        float noiseVal = sin(streamT * 20.0 + timeVal * 5.0 + fi * 10.0) * turbulence * 0.05;
+        perpDist += noiseVal;
         float streamD = smoothstep(streamWidth, 0.0, perpDist);
         streamD *= smoothstep(0.9, coreSize, streamT);
-        float3 streamColor = mix(float3(0.8, 0.4, 1.0), float3(0.4, 0.6, 1.0), streamT);
+        
+        // Rainbow or custom colors
+        float3 streamColor = rainbow > 0.5 ?
+            0.5 + 0.5 * cos(timeVal + streamT * 6.28 + float3(0.0, 2.0, 4.0)) :
+            mix(plasmaColor1, plasmaColor2, streamT);
+        
         col += streamD * streamColor * 0.4;
-        float glow = exp(-perpDist * 10.0) * 0.2;
-        col += glow * streamColor * sphere;
+        
+        // Glow
+        if (glow > 0.5) {
+            float glowVal = exp(-perpDist * 10.0) * glowIntensity * 0.3;
+            col += glowVal * streamColor * sphere;
+        }
     }
 }
+
+// Core
 float core = smoothstep(coreSize + 0.02, coreSize, r);
-float corePulse = 0.8 + 0.2 * sin(iTime * 3.0);
-col += core * float3(0.8, 0.6, 1.0) * corePulse;
+float corePulse = pulse > 0.5 ? 0.8 + 0.2 * sin(timeVal * 3.0) : 1.0;
+col += core * plasmaColor1 * corePulse;
+
+// Core glow
 float coreGlow = exp(-r / coreSize * 2.0);
-col += coreGlow * float3(0.5, 0.3, 0.8) * 0.3;
-return float4(col, 1.0);
+col += coreGlow * plasmaColor2 * 0.3;
+
+// Radial effect
+if (radial > 0.5) {
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(r * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Shockwave
 let shockwaveCode = """
-// @param waveCount "Liczba fal" range(1, 5) default(3)
-// @param waveSpeed "Prędkość fali" range(0.5, 3.0) default(1.5)
-// @param waveThickness "Grubość fali" range(0.02, 0.15) default(0.05)
-// @param distortionAmount "Zniekształcenie" range(0.0, 0.3) default(0.1)
-// @param fadeDistance "Zanikanie" range(0.5, 1.5) default(1.0)
-// @toggle colorful "Kolorowy" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param waveCount "Wave Count" range(1, 5) default(3)
+// @param waveSpeed "Wave Speed" range(0.5, 3.0) default(1.5)
+// @param waveThickness "Wave Thickness" range(0.02, 0.15) default(0.05)
+// @param distortionAmount "Distortion Amount" range(0.0, 0.3) default(0.1)
+// @param fadeDistance "Fade Distance" range(0.5, 1.5) default(1.0)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(1.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.9)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.8)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.5)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.7)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle colorful "Colorful" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(true)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Colors from params
+float3 waveColor1 = float3(color1R, color1G, color1B);
+float3 waveColor2 = float3(color2R, color2G, color2B);
+
+// Base color
 float3 col = float3(0.05, 0.05, 0.08);
 float3 background = 0.5 + 0.5 * cos(uv.xyx * 3.0 + float3(0.0, 2.0, 4.0));
 col = mix(col, background * 0.2, 0.3);
+
+// Shockwaves
 for (int w = 0; w < 5; w++) {
     if (w >= int(waveCount)) break;
     float fw = float(w);
-    float waveTime = fract(iTime * waveSpeed * 0.3 + fw * 0.3);
+    float waveTime = fract(timeVal * waveSpeed * 0.3 + fw * 0.3);
     float waveRadius = waveTime * fadeDistance * 1.5;
-    float2 center = float2(sin(fw * 2.0) * 0.2, cos(fw * 3.0) * 0.2);
-    float r = length(p - center);
+    float2 waveCenter = float2(sin(fw * 2.0) * 0.2, cos(fw * 3.0) * 0.2);
+    float r = length(p - waveCenter);
     float wave = abs(r - waveRadius);
     float waveMask = smoothstep(waveThickness, 0.0, wave);
     waveMask *= 1.0 - waveTime;
+    
+    // Distortion
     if (distortionAmount > 0.0) {
         float2 distortedUV = uv;
         float distort = smoothstep(waveThickness * 2.0, 0.0, wave) * distortionAmount;
-        distortedUV += normalize(p - center) * distort * (1.0 - waveTime);
+        distortedUV += normalize(p - waveCenter) * distort * (1.0 - waveTime);
         float3 distortedBg = 0.5 + 0.5 * cos(distortedUV.xyx * 3.0 + float3(0.0, 2.0, 4.0));
         col = mix(col, distortedBg * 0.5, distort * 2.0);
     }
-    float3 waveColor;
-    if (colorful > 0.5) {
-        waveColor = 0.5 + 0.5 * cos(fw * 1.5 + waveTime * 3.0 + float3(0.0, 2.0, 4.0));
+    
+    // Wave color
+    float3 currentWaveColor;
+    if (rainbow > 0.5) {
+        currentWaveColor = 0.5 + 0.5 * cos(timeVal + fw * 2.0 + float3(0.0, 2.0, 4.0));
+    } else if (colorful > 0.5) {
+        currentWaveColor = 0.5 + 0.5 * cos(fw * 1.5 + waveTime * 3.0 + float3(0.0, 2.0, 4.0));
     } else {
-        waveColor = float3(1.0, 0.9, 0.8);
+        currentWaveColor = mix(waveColor1, waveColor2, waveTime);
     }
-    col += waveMask * waveColor;
-    float glow = exp(-wave * 10.0) * (1.0 - waveTime) * 0.3;
-    col += glow * waveColor;
+    
+    col += waveMask * currentWaveColor;
+    
+    // Glow
+    if (glow > 0.5) {
+        float glowVal = exp(-wave * 10.0) * (1.0 - waveTime) * glowIntensity * 0.5;
+        col += glowVal * currentWaveColor;
+    }
 }
-return float4(col, 1.0);
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Tornado Vortex
 let tornadoVortexCode = """
-// @param vortexIntensity "Intensywność wiru" range(1.0, 5.0) default(3.0)
-// @param debrisAmount "Ilość gruzu" range(0.0, 1.0) default(0.5)
-// @param funnelWidth "Szerokość leja" range(0.1, 0.4) default(0.2)
-// @param rotationSpeed "Prędkość rotacji" range(1.0, 5.0) default(2.0)
-// @param dustOpacity "Przezroczystość pyłu" range(0.0, 1.0) default(0.4)
-// @toggle lightning "Błyskawice" default(true)
-float2 p = uv * 2.0 - 1.0;
-float3 col = float3(0.4, 0.35, 0.3);
-float cloudNoise = sin(uv.x * 5.0 + iTime * 0.2) * sin(uv.y * 3.0) * 0.1;
-col += cloudNoise;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param vortexIntensity "Vortex Intensity" range(1.0, 5.0) default(3.0)
+// @param debrisAmount "Debris Amount" range(0.0, 1.0) default(0.5)
+// @param funnelWidth "Funnel Width" range(0.1, 0.4) default(0.2)
+// @param rotationSpeed "Rotation Speed" range(1.0, 5.0) default(2.0)
+// @param dustOpacity "Dust Opacity" range(0.0, 1.0) default(0.4)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.4)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.35)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.3)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.15)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.12)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.1)
+// @toggle animated "Animated" default(true)
+// @toggle lightning "Lightning" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(false)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(true)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Colors from params
+float3 tornadoColor1 = float3(color1R, color1G, color1B);
+float3 tornadoColor2 = float3(color2R, color2G, color2B);
+
+// Base sky color
+float3 col = tornadoColor1;
+
+// Cloud noise
+float cloudNoise = sin(uv.x * 5.0 + timeVal * 0.2) * sin(uv.y * 3.0) * 0.1;
+if (noise > 0.5) {
+    col += cloudNoise * noiseAmount;
+}
+
+// Funnel calculations
 float funnelY = (p.y + 1.0) * 0.5;
 float funnelRadius = funnelWidth * (1.0 - funnelY * 0.7);
 float funnelDist = abs(p.x) - funnelRadius;
 float funnel = smoothstep(0.05, 0.0, funnelDist);
 funnel *= step(p.y, 0.8);
-float twist = atan2(p.x, funnelY + 0.1) + iTime * rotationSpeed;
+
+// Spiral twist
+float twist = atan2(p.x, funnelY + 0.1) + timeVal * rotationSpeed;
 float spiral = sin(twist * vortexIntensity + funnelY * 10.0) * 0.5 + 0.5;
-float3 funnelColor = mix(float3(0.3, 0.25, 0.2), float3(0.15, 0.12, 0.1), spiral);
+
+// Rainbow or custom colors for funnel
+float3 funnelColor;
+if (rainbow > 0.5) {
+    funnelColor = 0.5 + 0.5 * cos(timeVal + spiral * 6.28 + float3(0.0, 2.0, 4.0));
+} else {
+    funnelColor = mix(tornadoColor1, tornadoColor2, spiral);
+}
 col = mix(col, funnelColor, funnel * 0.8);
+
+// Debris particles
 if (debrisAmount > 0.0) {
     for (int i = 0; i < 30; i++) {
         float fi = float(i);
-        float debrisAngle = fi * 0.5 + iTime * rotationSpeed * (0.8 + fract(sin(fi) * 0.4));
-        float debrisY = fract(fi * 0.123 + iTime * 0.3) * 1.5 - 0.5;
+        float debrisAngle = fi * 0.5 + timeVal * rotationSpeed * (0.8 + fract(sin(fi) * 0.4));
+        float debrisY = fract(fi * 0.123 + timeVal * 0.3) * 1.5 - 0.5;
         float debrisRadius = funnelWidth * (1.0 - (debrisY + 0.5) * 0.4) * (1.0 + sin(fi) * 0.3);
         float2 debrisPos = float2(sin(debrisAngle) * debrisRadius, debrisY);
         float d = length(p - debrisPos);
         float debris = smoothstep(0.02, 0.01, d) * debrisAmount;
-        col = mix(col, float3(0.2, 0.15, 0.1), debris);
+        col = mix(col, tornadoColor2, debris);
     }
 }
+
+// Dust effect
 float dust = smoothstep(funnelRadius + 0.2, funnelRadius, abs(p.x)) * dustOpacity;
 dust *= step(p.y, 0.5) * (1.0 - funnelY);
-col = mix(col, float3(0.5, 0.45, 0.4), dust * 0.5);
+col = mix(col, tornadoColor1 * 1.2, dust * 0.5);
+
+// Lightning flash
 if (lightning > 0.5) {
-    float flash = step(0.98, sin(iTime * 10.0 + sin(iTime * 50.0) * 5.0));
+    float flash = step(0.98, sin(timeVal * 10.0 + sin(timeVal * 50.0) * 5.0));
     col += flash * float3(1.0, 0.95, 0.9) * 0.3;
 }
-return float4(col, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    float glowVal = exp(-abs(funnelDist) * 5.0) * glowIntensity;
+    col += glowVal * funnelColor * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Magnetic Field
 let magneticFieldCode = """
-// @param fieldStrength "Siła pola" range(1.0, 5.0) default(2.5)
-// @param lineCount "Liczba linii" range(10, 50) default(25)
-// @param particleSpeed "Prędkość cząstek" range(0.5, 3.0) default(1.5)
-// @param poleDistance "Odległość biegunów" range(0.3, 0.8) default(0.5)
-// @param lineThickness "Grubość linii" range(0.005, 0.02) default(0.008)
-// @toggle particles "Cząstki" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param fieldStrength "Field Strength" range(1.0, 5.0) default(2.5)
+// @param lineCount "Line Count" range(10, 50) default(25)
+// @param particleSpeed "Particle Speed" range(0.5, 3.0) default(1.5)
+// @param poleDistance "Pole Distance" range(0.3, 0.8) default(0.5)
+// @param lineThickness "Line Thickness" range(0.005, 0.02) default(0.008)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(1.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.3)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.3)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.3)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.3)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle particles "Particles" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Colors from params
+float3 poleColor1 = float3(color1R, color1G, color1B);
+float3 poleColor2 = float3(color2R, color2G, color2B);
+
+// Base color
 float3 col = float3(0.02, 0.02, 0.05);
+
+// Pole positions
 float2 pole1 = float2(-poleDistance, 0.0);
 float2 pole2 = float2(poleDistance, 0.0);
+
+// Field lines
 for (int i = 0; i < 50; i++) {
     if (i >= int(lineCount)) break;
     float fi = float(i);
-    float startAngle = (fi / float(lineCount)) * 3.14159;
+    float startAngle = (fi / lineCount) * 3.14159;
     float2 fieldPos = pole1 + float2(cos(startAngle), sin(startAngle)) * 0.1;
-    for (int step = 0; step < 50; step++) {
+    for (int stepIdx = 0; stepIdx < 50; stepIdx++) {
         float2 dir1 = normalize(fieldPos - pole1);
         float2 dir2 = normalize(pole2 - fieldPos);
         float dist1 = length(fieldPos - pole1);
@@ -212,21 +1257,33 @@ for (int i = 0; i < 50; i++) {
         fieldDir = normalize(fieldDir);
         float2 nextPos = fieldPos + fieldDir * 0.03;
         float d = length(p - fieldPos);
-        float line = smoothstep(lineThickness, 0.0, d);
-        col += line * float3(0.3, 0.5, 0.8) * 0.1;
+        float lineVal = smoothstep(lineThickness, 0.0, d);
+        
+        // Rainbow or gradient color
+        float3 lineColor = rainbow > 0.5 ?
+            0.5 + 0.5 * cos(timeVal + fi * 0.3 + float3(0.0, 2.0, 4.0)) :
+            mix(poleColor1, poleColor2, float(stepIdx) / 50.0);
+        
+        col += lineVal * lineColor * 0.1;
         fieldPos = nextPos;
         if (length(fieldPos - pole2) < 0.1) break;
         if (length(fieldPos) > 1.5) break;
     }
 }
-float poleGlow1 = exp(-length(p - pole1) * 5.0);
-float poleGlow2 = exp(-length(p - pole2) * 5.0);
-col += poleGlow1 * float3(1.0, 0.3, 0.3);
-col += poleGlow2 * float3(0.3, 0.3, 1.0);
+
+// Pole glows
+if (glow > 0.5) {
+    float poleGlow1 = exp(-length(p - pole1) * 5.0) * glowIntensity;
+    float poleGlow2 = exp(-length(p - pole2) * 5.0) * glowIntensity;
+    col += poleGlow1 * poleColor1;
+    col += poleGlow2 * poleColor2;
+}
+
+// Particles
 if (particles > 0.5) {
     for (int i = 0; i < 20; i++) {
         float fi = float(i);
-        float particleT = fract(iTime * particleSpeed * 0.1 + fi * 0.05);
+        float particleT = fract(timeVal * particleSpeed * 0.1 + fi * 0.05);
         float particleAngle = (fi / 20.0) * 3.14159;
         float2 particlePos = mix(
             pole1 + float2(cos(particleAngle), sin(particleAngle)) * 0.1,
@@ -239,260 +1296,1993 @@ if (particles > 0.5) {
         col += particle * float3(0.8, 0.9, 1.0);
     }
 }
-return float4(col, 1.0);
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Energy Beam
 let energyBeamCode = """
-// @param beamWidth "Szerokość wiązki" range(0.05, 0.3) default(0.15)
-// @param beamIntensity "Intensywność" range(0.5, 2.0) default(1.0)
-// @param noiseAmount "Szum" range(0.0, 0.2) default(0.05)
-// @param pulseFrequency "Częstotliwość pulsacji" range(1.0, 10.0) default(5.0)
-// @param coreRatio "Stosunek rdzenia" range(0.1, 0.5) default(0.3)
-// @toggle horizontal "Poziomy" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param beamWidth "Beam Width" range(0.05, 0.3) default(0.15)
+// @param beamIntensity "Beam Intensity" range(0.5, 2.0) default(1.0)
+// @param noiseAmountBeam "Beam Noise" range(0.0, 0.2) default(0.05)
+// @param pulseFrequency "Pulse Frequency" range(1.0, 10.0) default(5.0)
+// @param coreRatio "Core Ratio" range(0.1, 0.5) default(0.3)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.3)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.5)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.8)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.9)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle horizontal "Horizontal" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Horizontal/vertical orientation
 if (horizontal < 0.5) {
     p = p.yx;
 }
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Colors from params
+float3 outerColor = float3(color1R, color1G, color1B);
+float3 innerColor = float3(color2R, color2G, color2B);
+
+// Base color
 float3 col = float3(0.02, 0.02, 0.05);
+
+// Beam calculations
 float beamY = 0.0;
-float noise = sin(p.x * 30.0 + iTime * 5.0) * sin(p.x * 50.0 + iTime * 8.0) * noiseAmount;
-float distToBeam = abs(p.y - beamY - noise);
+float beamNoise = sin(p.x * 30.0 + timeVal * 5.0) * sin(p.x * 50.0 + timeVal * 8.0) * noiseAmountBeam;
+float distToBeam = abs(p.y - beamY - beamNoise);
 float beam = smoothstep(beamWidth, 0.0, distToBeam);
 float core = smoothstep(beamWidth * coreRatio, 0.0, distToBeam);
-float pulse = 0.7 + 0.3 * sin(p.x * 10.0 - iTime * pulseFrequency);
-float3 outerColor = float3(0.3, 0.5, 1.0);
-float3 innerColor = float3(0.8, 0.9, 1.0);
-col += beam * outerColor * pulse * beamIntensity;
-col += core * innerColor * beamIntensity;
-float glow = exp(-distToBeam * 5.0) * 0.5;
-col += glow * outerColor * beamIntensity;
-float sparkle = step(0.99, fract(sin(dot(floor(p * 50.0 + iTime * 10.0), float2(12.9898, 78.233))) * 43758.5453));
+
+// Pulse effect
+float pulseVal = pulse > 0.5 ? 0.7 + 0.3 * sin(p.x * 10.0 - timeVal * pulseFrequency) : 1.0;
+
+// Rainbow or custom colors
+float3 beamOuterColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(timeVal + p.x * 2.0 + float3(0.0, 2.0, 4.0)) :
+    outerColor;
+float3 beamInnerColor = rainbow > 0.5 ?
+    0.7 + 0.3 * cos(timeVal + p.x * 2.0 + float3(1.0, 3.0, 5.0)) :
+    innerColor;
+
+col += beam * beamOuterColor * pulseVal * beamIntensity;
+col += core * beamInnerColor * beamIntensity;
+
+// Glow
+if (glow > 0.5) {
+    float glowVal = exp(-distToBeam * 5.0) * glowIntensity;
+    col += glowVal * beamOuterColor * beamIntensity * 0.5;
+}
+
+// Sparkles
+float sparkle = step(0.99, fract(sin(dot(floor(p * 50.0 + timeVal * 10.0), float2(12.9898, 78.233))) * 43758.5453));
 sparkle *= beam;
 col += sparkle * float3(1.0);
-return float4(col, 1.0);
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Quantum Fluctuation
 let quantumFluctuationCode = """
-// @param fluctuationScale "Skala fluktuacji" range(5.0, 30.0) default(15.0)
-// @param probabilityDensity "Gęstość prawdopodobieństwa" range(0.3, 1.0) default(0.6)
-// @param waveFunctionSpeed "Prędkość funkcji falowej" range(0.5, 3.0) default(1.5)
-// @param entanglementStrength "Siła splątania" range(0.0, 1.0) default(0.5)
-// @param colorPhase "Faza koloru" range(0.0, 6.28) default(0.0)
-// @toggle interference "Interferencja" default(true)
-float2 p = uv * fluctuationScale;
-float time = iTime * waveFunctionSpeed;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param fluctuationScale "Fluctuation Scale" range(5.0, 30.0) default(15.0)
+// @param probabilityDensity "Probability Density" range(0.3, 1.0) default(0.6)
+// @param waveFunctionSpeed "Wave Function Speed" range(0.5, 3.0) default(1.5)
+// @param entanglementStrength "Entanglement Strength" range(0.0, 1.0) default(0.5)
+// @param colorPhase "Color Phase" range(0.0, 6.28) default(0.0)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.3)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.8)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.8)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.3)
+// @toggle animated "Animated" default(true)
+// @toggle interference "Interference" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(false)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 baseP = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+baseP = float2(baseP.x * cosR - baseP.y * sinR, baseP.x * sinR + baseP.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) baseP.x = abs(baseP.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    baseP = floor(baseP / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(baseP.y, baseP.x);
+    float rad = length(baseP);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    baseP = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+float waveTime = timeVal * waveFunctionSpeed;
+
+// Scale for fluctuation
+float2 p = baseP * fluctuationScale;
+
+// Colors from params
+float3 quantumColor1 = float3(color1R, color1G, color1B);
+float3 quantumColor2 = float3(color2R, color2G, color2B);
+
+// Base color
 float3 col = float3(0.02, 0.02, 0.05);
-float psi1 = sin(p.x + time) * sin(p.y * 1.3 + time * 0.7);
-float psi2 = sin(p.x * 1.5 - time * 0.8) * sin(p.y * 0.8 - time);
+
+// Wave functions
+float psi1 = sin(p.x + waveTime) * sin(p.y * 1.3 + waveTime * 0.7);
+float psi2 = sin(p.x * 1.5 - waveTime * 0.8) * sin(p.y * 0.8 - waveTime);
+
+// Probability calculation
 float probability = psi1 * psi1 + psi2 * psi2;
 probability = probability * 0.25 * probabilityDensity;
+
+// Interference
 if (interference > 0.5) {
     float interf = psi1 * psi2;
     probability += interf * 0.3;
 }
+
+// Entanglement
 if (entanglementStrength > 0.0) {
-    float entangle = sin(p.x * 2.0 + p.y * 2.0 + time * 2.0);
-    entangle *= sin(fluctuationScale - p.x * 2.0 + fluctuationScale - p.y * 2.0 + time * 2.0);
+    float entangle = sin(p.x * 2.0 + p.y * 2.0 + waveTime * 2.0);
+    entangle *= sin(fluctuationScale - p.x * 2.0 + fluctuationScale - p.y * 2.0 + waveTime * 2.0);
     probability += entangle * entanglementStrength * 0.2;
 }
-float3 color1 = 0.5 + 0.5 * cos(probability * 5.0 + colorPhase + float3(0.0, 2.0, 4.0));
-float3 color2 = 0.5 + 0.5 * cos(probability * 7.0 + colorPhase + float3(4.0, 2.0, 0.0));
-col = mix(color1, color2, sin(time + p.x * 0.1) * 0.5 + 0.5);
+
+// Color mixing
+float3 waveColor1, waveColor2;
+if (rainbow > 0.5) {
+    waveColor1 = 0.5 + 0.5 * cos(probability * 5.0 + waveTime + float3(0.0, 2.0, 4.0));
+    waveColor2 = 0.5 + 0.5 * cos(probability * 7.0 + waveTime + float3(4.0, 2.0, 0.0));
+} else {
+    waveColor1 = mix(quantumColor1, quantumColor2, probability);
+    waveColor2 = mix(quantumColor2, quantumColor1, probability);
+}
+
+col = mix(waveColor1, waveColor2, sin(waveTime + p.x * 0.1) * 0.5 + 0.5);
 col *= probability * 2.0 + 0.1;
-float uncertainty = fract(sin(dot(p + time, float2(12.9898, 78.233))) * 43758.5453);
+
+// Uncertainty sparkles
+float uncertainty = fract(sin(dot(p + waveTime, float2(12.9898, 78.233))) * 43758.5453);
 col += step(0.997, uncertainty) * float3(1.0, 0.9, 0.8);
-return float4(col, 1.0);
+
+// Glow
+if (glow > 0.5) {
+    col += probability * glowIntensity * quantumColor1 * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(baseP);
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + baseP.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(probability * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(waveTime * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(waveTime * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Fire Whirl
 let fireWhirlCode = """
-// @param whirlSpeed "Prędkość wiru" range(0.5, 4.0) default(2.0)
-// @param flameHeight "Wysokość płomieni" range(0.5, 1.5) default(1.0)
-// @param spiralTightness "Ciasność spirali" range(1.0, 5.0) default(2.5)
-// @param emberCount "Ilość iskier" range(0.0, 1.0) default(0.5)
-// @param heatDistortion "Zniekształcenie cieplne" range(0.0, 0.1) default(0.03)
-// @toggle smokeTrail "Ślad dymu" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param whirlSpeed "Whirl Speed" range(0.5, 4.0) default(2.0)
+// @param flameHeight "Flame Height" range(0.5, 1.5) default(1.0)
+// @param spiralTightness "Spiral Tightness" range(1.0, 5.0) default(2.5)
+// @param emberCount "Ember Count" range(0.0, 1.0) default(0.5)
+// @param heatDistortion "Heat Distortion" range(0.0, 0.1) default(0.03)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(1.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.3)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(1.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.9)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.3)
+// @toggle animated "Animated" default(true)
+// @toggle smokeTrail "Smoke Trail" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(true)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+
+// Setup coordinates with center, zoom, rotation
+float2 center = float2(centerX, centerY);
+float2 p = (uv - 0.5) * 2.0 / zoom - center;
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) p.x = abs(p.x);
+
+// Pixelate effect
+if (pixelate > 0.5) {
+    float pxSize = max(1.0, pixelSize) / 100.0;
+    p = floor(p / pxSize) * pxSize;
+}
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float rad = length(p);
+    angle = fmod(angle, 3.14159 / 3.0);
+    angle = abs(angle - 3.14159 / 6.0);
+    p = float2(cos(angle), sin(angle)) * rad;
+}
+
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Colors from params
+float3 fireColor1 = float3(color1R, color1G, color1B);
+float3 fireColor2 = float3(color2R, color2G, color2B);
+
 float r = length(p);
 float a = atan2(p.y, p.x);
+
+// Base color
 float3 col = float3(0.05, 0.02, 0.01);
-float distort = sin(a * 5.0 + iTime * 3.0) * heatDistortion;
-float2 dp = p + float2(distort, distort * 0.5);
-float spiral = a + r * spiralTightness - iTime * whirlSpeed;
+
+// Heat distortion
+float distortVal = sin(a * 5.0 + timeVal * 3.0) * heatDistortion;
+float2 dp = p + float2(distortVal, distortVal * 0.5);
+
+// Spiral flame
+float spiral = a + r * spiralTightness - timeVal * whirlSpeed;
 float flame = sin(spiral * 3.0) * 0.5 + 0.5;
 flame *= smoothstep(0.6, 0.0, r);
 flame *= (1.0 - dp.y * 0.5 / flameHeight);
 flame = max(0.0, flame);
+
+// Height-based color
 float height = 1.0 - r * 0.5 - (1.0 - dp.y) * 0.3;
 height = clamp(height, 0.0, 1.0);
-float3 fireColor = mix(float3(1.0, 0.9, 0.3), float3(1.0, 0.3, 0.0), 1.0 - height);
-fireColor = mix(fireColor, float3(0.8, 0.1, 0.0), pow(1.0 - height, 2.0));
-col = mix(col, fireColor, flame);
+
+// Rainbow or custom fire colors
+float3 currentFireColor;
+if (rainbow > 0.5) {
+    currentFireColor = 0.5 + 0.5 * cos(timeVal + height * 6.28 + float3(0.0, 2.0, 4.0));
+} else {
+    currentFireColor = mix(fireColor2, fireColor1, height);
+    currentFireColor = mix(currentFireColor, fireColor1 * 0.8, pow(1.0 - height, 2.0));
+}
+
+col = mix(col, currentFireColor, flame);
+
+// Smoke trail
 if (smokeTrail > 0.5) {
     float smoke = smoothstep(0.3, 0.8, dp.y + r * 0.5);
     smoke *= smoothstep(0.8, 0.3, r);
-    float smokeNoise = sin(dp.x * 10.0 + iTime * 2.0) * sin(dp.y * 8.0 + iTime) * 0.5 + 0.5;
+    float smokeNoise = sin(dp.x * 10.0 + timeVal * 2.0) * sin(dp.y * 8.0 + timeVal) * 0.5 + 0.5;
     col = mix(col, float3(0.2, 0.18, 0.15) * smokeNoise, smoke * 0.5);
 }
+
+// Embers
 if (emberCount > 0.0) {
     for (int i = 0; i < 30; i++) {
         float fi = float(i);
-        float emberA = fi * 0.5 + iTime * whirlSpeed;
+        float emberA = fi * 0.5 + timeVal * whirlSpeed;
         float emberR = fract(sin(fi * 43.758) * 43758.5453) * 0.5;
-        float emberY = fract(fi * 0.123 + iTime * 0.5) * flameHeight * 1.5;
+        float emberY = fract(fi * 0.123 + timeVal * 0.5) * flameHeight * 1.5;
         float2 emberPos = float2(sin(emberA) * emberR, emberY - 0.5);
         float d = length(p - emberPos);
         float ember = smoothstep(0.015, 0.005, d) * emberCount;
-        col += ember * float3(1.0, 0.6, 0.2);
+        col += ember * fireColor2;
     }
 }
-return float4(col, 1.0);
+
+// Glow
+if (glow > 0.5) {
+    col += flame * glowIntensity * fireColor1 * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    col *= 1.0 + (1.0 - r) * 0.3;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(r * 5.0) - 0.5) * 2.0;
+    col = mix(col, float3(1.0), smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, float3(1.0), smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 30.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.2;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.1;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 10.0;
+    col.b *= 1.0 - chromaticAmount * 10.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Cyberpunk Grid
 let cyberpunkGridCode = """
-// @param gridSize "Rozmiar siatki" range(5.0, 20.0) default(10.0)
-// @param perspectiveStrength "Siła perspektywy" range(0.0, 1.0) default(0.5)
-// @param scanlineSpeed "Prędkość linii skanowania" range(0.0, 3.0) default(1.0)
-// @param glowAmount "Poświata" range(0.0, 1.0) default(0.5)
-// @param chromaShift "Przesunięcie chromatyczne" range(0.0, 0.02) default(0.005)
-// @toggle neonPulse "Neonowy puls" default(true)
-float2 p = uv;
-p.y = pow(p.y, 1.0 + perspectiveStrength);
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param gridSize "Grid Size" range(5.0, 20.0) default(10.0)
+// @param perspectiveStrength "Perspective Strength" range(0.0, 1.0) default(0.5)
+// @param scanlineSpeed "Scanline Speed" range(0.0, 3.0) default(1.0)
+// @param glowAmount "Glow Amount" range(0.0, 1.0) default(0.5)
+// @param chromaShift "Chroma Shift" range(0.0, 0.02) default(0.005)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(1.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.0)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.5)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(1.0)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle neonPulse "Neon Pulse" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(true)
+// @toggle scanlines "Scanlines" default(true)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 cyberColor1 = float3(color1R, color1G, color1B);
+float3 cyberColor2 = float3(color2R, color2G, color2B);
+
+// Perspective grid
+float2 gridP = p + center;
+gridP.y = pow(max(gridP.y, 0.001), 1.0 + perspectiveStrength);
+gridP *= gridSize;
+
+// Dark background
 float3 col = float3(0.02, 0.01, 0.05);
-float2 gridP = p * gridSize;
+
+// Grid lines
 float2 gridF = fract(gridP);
 float gridLineX = smoothstep(0.05, 0.0, abs(gridF.x - 0.5) - 0.45);
 float gridLineY = smoothstep(0.05, 0.0, abs(gridF.y - 0.5) - 0.45);
 float grid = max(gridLineX, gridLineY);
-float depth = 1.0 - uv.y;
-grid *= depth;
-float3 gridColor = float3(1.0, 0.0, 0.5);
+
+// Depth fade
+float depth = 1.0 - (uv.y + centerY * 0.5);
+grid *= clamp(depth, 0.0, 1.0);
+
+// Grid color
+float3 gridColor = rainbow > 0.5 ? 
+    0.5 + 0.5 * cos(timeVal + gridP.y * 0.5 + float3(0.0, 2.0, 4.0)) :
+    mix(cyberColor1, cyberColor2, fract(gridP.y * 0.1 + timeVal * 0.5));
+
+// Neon pulse
 if (neonPulse > 0.5) {
-    float pulse = 0.7 + 0.3 * sin(iTime * 3.0 + gridP.y * 0.5);
-    gridColor *= pulse;
+    float pulseVal = 0.7 + 0.3 * sin(timeVal * 3.0 + gridP.y * 0.5);
+    gridColor *= pulseVal;
 }
+
 col += grid * gridColor;
-col += grid * glowAmount * gridColor * 0.5;
+
+// Glow effect around grid
+if (glow > 0.5) {
+    col += grid * glowAmount * gridColor * glowIntensity;
+}
+
+// Chromatic shift on grid
 if (chromaShift > 0.0) {
-    float2 pR = uv - float2(chromaShift, 0.0);
-    float2 pB = uv + float2(chromaShift, 0.0);
-    pR.y = pow(pR.y, 1.0 + perspectiveStrength);
-    pB.y = pow(pB.y, 1.0 + perspectiveStrength);
+    float2 pR = (uv - float2(chromaShift, 0.0) - center) / zoom;
+    float2 pB = (uv + float2(chromaShift, 0.0) - center) / zoom;
+    pR.y = pow(max(pR.y + center.y, 0.001), 1.0 + perspectiveStrength);
+    pB.y = pow(max(pB.y + center.y, 0.001), 1.0 + perspectiveStrength);
+    pR *= gridSize;
+    pB *= gridSize;
     float gridR = max(
-        smoothstep(0.05, 0.0, abs(fract(pR.x * gridSize) - 0.5) - 0.45),
-        smoothstep(0.05, 0.0, abs(fract(pR.y * gridSize) - 0.5) - 0.45)
+        smoothstep(0.05, 0.0, abs(fract(pR.x) - 0.5) - 0.45),
+        smoothstep(0.05, 0.0, abs(fract(pR.y) - 0.5) - 0.45)
     );
     float gridB = max(
-        smoothstep(0.05, 0.0, abs(fract(pB.x * gridSize) - 0.5) - 0.45),
-        smoothstep(0.05, 0.0, abs(fract(pB.y * gridSize) - 0.5) - 0.45)
+        smoothstep(0.05, 0.0, abs(fract(pB.x) - 0.5) - 0.45),
+        smoothstep(0.05, 0.0, abs(fract(pB.y) - 0.5) - 0.45)
     );
-    col.r += gridR * (1.0 - uv.y) * 0.3;
-    col.b += gridB * (1.0 - uv.y) * 0.3;
+    col.r += gridR * depth * 0.3;
+    col.b += gridB * depth * 0.3;
 }
+
+// Scanline sweep
 if (scanlineSpeed > 0.0) {
-    float scanline = fract(uv.y * 50.0 - iTime * scanlineSpeed);
+    float scanline = fract(uv.y * 50.0 - timeVal * scanlineSpeed);
     scanline = smoothstep(0.0, 0.1, scanline) * smoothstep(0.2, 0.1, scanline);
-    col += scanline * float3(0.0, 1.0, 1.0) * 0.1;
+    col += scanline * cyberColor2 * 0.15;
 }
-float horizon = smoothstep(0.02, 0.0, abs(uv.y - 0.3));
-col += horizon * float3(1.0, 0.0, 0.5) * 0.5;
-return float4(col, 1.0);
+
+// Horizon glow
+float horizon = smoothstep(0.02, 0.0, abs(uv.y - 0.3 + centerY * 0.5));
+col += horizon * cyberColor1 * 0.5;
+
+// Data particles
+for (int i = 0; i < 15; i++) {
+    float fi = float(i);
+    float px = fract(fi * 0.372 + timeVal * 0.1) * 2.0 - 1.0;
+    float py = fract(fi * 0.519 - timeVal * 0.3) * 2.0 - 1.0;
+    float d = length(p - float2(px, py));
+    float particle = smoothstep(0.03, 0.01, d);
+    col += particle * gridColor * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.5), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, cyberColor1, smoothstep(0.4, 0.5, edge) * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, cyberColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Holographic Display
 let holographicDisplayCode = """
-// @param scanSpeed "Prędkość skanowania" range(0.5, 3.0) default(1.5)
-// @param flickerAmount "Migotanie" range(0.0, 0.5) default(0.1)
-// @param staticNoise "Szum statyczny" range(0.0, 0.3) default(0.1)
-// @param transparency "Przezroczystość" range(0.3, 1.0) default(0.7)
-// @param colorShift "Przesunięcie kolorów" range(0.0, 1.0) default(0.3)
-// @toggle dataStreams "Strumienie danych" default(true)
-float2 p = uv;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param scanSpeed "Scan Speed" range(0.5, 3.0) default(1.5)
+// @param flickerAmount "Flicker Amount" range(0.0, 0.5) default(0.1)
+// @param staticNoise "Static Noise" range(0.0, 0.3) default(0.1)
+// @param transparency "Transparency" range(0.3, 1.0) default(0.7)
+// @param colorShiftHolo "Color Shift" range(0.0, 1.0) default(0.3)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.8)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(1.0)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.5)
+// @toggle animated "Animated" default(true)
+// @toggle dataStreams "Data Streams" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(true)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(true)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 holoColor1 = float3(color1R, color1G, color1B);
+float3 holoColor2 = float3(color2R, color2G, color2B);
+
+// Background
 float3 col = float3(0.0);
-float scanLine = fract(p.y * 100.0 - iTime * scanSpeed * 10.0);
-scanLine = step(0.5, scanLine) * 0.1;
-float shape = smoothstep(0.3, 0.25, abs(p.x - 0.5)) * smoothstep(0.4, 0.35, abs(p.y - 0.5));
-float3 holoColor = float3(0.0, 0.8, 1.0);
-holoColor = mix(holoColor, float3(0.0, 1.0, 0.5), p.y * colorShift);
-float flicker = 1.0 - flickerAmount * step(0.95, fract(sin(iTime * 50.0) * 43758.5453));
-float noise = fract(sin(dot(p + iTime, float2(12.9898, 78.233))) * 43758.5453);
-noise = step(1.0 - staticNoise, noise) * staticNoise;
-col = holoColor * shape * transparency * flicker;
-col += scanLine * holoColor * shape;
-col += noise * float3(0.0, 0.5, 0.5);
+
+// Holographic panel shape
+float2 panelP = p + float2(0.5);
+float shape = smoothstep(0.35, 0.30, abs(panelP.x - 0.5)) * smoothstep(0.45, 0.40, abs(panelP.y - 0.5));
+
+// Hologram color with shift
+float3 currentHoloColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(timeVal + panelP.y * 6.28 + float3(0.0, 2.0, 4.0)) :
+    mix(holoColor1, holoColor2, panelP.y * colorShiftHolo);
+
+// Scan line sweep
+float scanLine = fract(panelP.y * 100.0 - timeVal * scanSpeed * 10.0);
+scanLine = step(0.5, scanLine) * 0.15;
+
+// Flicker effect
+float flickVal = 1.0 - flickerAmount * step(0.95, fract(sin(timeVal * 50.0) * 43758.5453));
+
+// Static noise
+float staticVal = fract(sin(dot(panelP + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+staticVal = step(1.0 - staticNoise, staticVal) * staticNoise;
+
+// Combine hologram
+col = currentHoloColor * shape * transparency * flickVal;
+col += scanLine * currentHoloColor * shape;
+col += staticVal * holoColor2 * 0.5;
+
+// Data streams
 if (dataStreams > 0.5) {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 8; i++) {
         float fi = float(i);
         float streamX = fract(fi * 0.2 + 0.1);
-        float streamY = fract(iTime * 0.5 + fi * 0.3);
+        float streamY = fract(timeVal * 0.5 + fi * 0.3);
         float2 streamPos = float2(streamX, streamY);
-        float d = length((p - streamPos) * float2(1.0, 10.0));
+        float d = length((panelP - streamPos) * float2(1.0, 10.0));
         float stream = smoothstep(0.05, 0.02, d);
-        col += stream * float3(0.0, 1.0, 0.8) * 0.3;
+        col += stream * holoColor2 * 0.25;
     }
 }
-float edge = smoothstep(0.28, 0.25, abs(p.x - 0.5)) - smoothstep(0.25, 0.22, abs(p.x - 0.5));
-edge += smoothstep(0.38, 0.35, abs(p.y - 0.5)) - smoothstep(0.35, 0.32, abs(p.y - 0.5));
-col += edge * holoColor * 0.5;
-return float4(col, 1.0);
+
+// Horizontal data bars
+for (int j = 0; j < 5; j++) {
+    float fj = float(j);
+    float barY = fract(fj * 0.15 + 0.2);
+    float barWidth = 0.1 + 0.1 * sin(timeVal + fj);
+    float barX = fract(timeVal * 0.3 + fj * 0.3);
+    float bar = smoothstep(0.01, 0.0, abs(panelP.y - barY));
+    bar *= step(barX - barWidth, panelP.x) * step(panelP.x, barX);
+    col += bar * currentHoloColor * 0.4;
+}
+
+// Panel edge glow
+float edge = smoothstep(0.33, 0.30, abs(panelP.x - 0.5)) - smoothstep(0.30, 0.27, abs(panelP.x - 0.5));
+edge += smoothstep(0.43, 0.40, abs(panelP.y - 0.5)) - smoothstep(0.40, 0.37, abs(panelP.y - 0.5));
+col += edge * currentHoloColor * 0.5;
+
+// Glow effect
+if (glow > 0.5) {
+    col += shape * glowIntensity * currentHoloColor * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + panelP.y * 0.5), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edgeVis = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, currentHoloColor, smoothstep(0.4, 0.5, edgeVis) * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, holoColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 4.0);
+}
+
+// Flicker toggle
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 // MARK: - Experimental Shaders
 
 /// Dimensional Rift
 let dimensionalRiftCode = """
-// @param riftWidth "Szerokość szczeliny" range(0.05, 0.3) default(0.1)
-// @param edgeDistortion "Zniekształcenie krawędzi" range(0.0, 0.2) default(0.08)
-// @param innerGlow "Wewnętrzna poświata" range(0.0, 1.0) default(0.7)
-// @param dimensionBleed "Przenikanie wymiarów" range(0.0, 0.5) default(0.2)
-// @param turbulence "Turbulencja" range(0.0, 1.0) default(0.5)
-// @toggle alternateReality "Alternatywna rzeczywistość" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param riftWidth "Rift Width" range(0.05, 0.3) default(0.1)
+// @param edgeDistortion "Edge Distortion" range(0.0, 0.2) default(0.08)
+// @param innerGlow "Inner Glow" range(0.0, 1.0) default(0.7)
+// @param dimensionBleed "Dimension Bleed" range(0.0, 0.5) default(0.2)
+// @param turbulence "Turbulence" range(0.0, 1.0) default(0.5)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.0)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.8)
+// @param color2R "Color2 R" range(0.0, 1.0) default(1.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(1.0)
+// @toggle animated "Animated" default(true)
+// @toggle alternateReality "Alternate Reality" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(true)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 riftColor = float3(color1R, color1G, color1B);
+float3 edgeColor = float3(color2R, color2G, color2B);
+
+// Dark background
 float3 col = float3(0.02, 0.02, 0.05);
-float riftY = sin(p.y * 5.0 + iTime) * edgeDistortion;
+
+// Rift position with turbulence
+float riftY = sin(p.y * 5.0 + timeVal) * edgeDistortion;
 float riftDist = abs(p.x - riftY) - riftWidth;
-riftDist += sin(p.y * 20.0 + iTime * 3.0) * turbulence * 0.03;
+riftDist += sin(p.y * 20.0 + timeVal * 3.0) * turbulence * 0.03;
+
+// Rainbow rift color
+if (rainbow > 0.5) {
+    riftColor = 0.5 + 0.5 * cos(timeVal + p.y * 3.0 + float3(0.0, 2.0, 4.0));
+    edgeColor = 0.5 + 0.5 * cos(timeVal + p.y * 3.0 + float3(2.0, 4.0, 0.0));
+}
+
+// Rift shape
 float rift = smoothstep(0.0, -0.05, riftDist);
 float edge = smoothstep(0.05, 0.0, abs(riftDist));
-float3 riftColor = float3(0.5, 0.0, 0.8);
-float3 edgeColor = float3(1.0, 0.5, 1.0);
-float innerPulse = 0.5 + 0.5 * sin(iTime * 2.0 + p.y * 3.0);
+
+// Inner pulse
+float innerPulse = 0.5 + 0.5 * sin(timeVal * 2.0 + p.y * 3.0);
+
+// Rift glow
 col += rift * riftColor * innerGlow * innerPulse;
 col += edge * edgeColor;
-float glow = exp(-abs(riftDist) * 5.0) * 0.5;
-col += glow * riftColor;
+
+// Atmospheric glow
+if (glow > 0.5) {
+    float glowVal = exp(-abs(riftDist) * 5.0) * glowIntensity;
+    col += glowVal * riftColor;
+}
+
+// Alternate reality view through rift
 if (alternateReality > 0.5 && rift > 0.0) {
     float2 altP = p;
     altP.x = -altP.x;
-    altP.y += iTime * 0.2;
-    float3 altWorld = 0.5 + 0.5 * cos(altP.xyx * 3.0 + iTime + float3(0.0, 2.0, 4.0));
+    altP.y += timeVal * 0.2;
+    float3 altWorld = 0.5 + 0.5 * cos(altP.xyx * 3.0 + timeVal + float3(0.0, 2.0, 4.0));
     altWorld = 1.0 - altWorld;
     col = mix(col, altWorld, rift * 0.7);
 }
+
+// Dimension bleed effect
 if (dimensionBleed > 0.0) {
     float bleed = smoothstep(riftWidth + dimensionBleed, riftWidth, abs(p.x - riftY));
-    float3 bleedColor = 0.5 + 0.5 * cos(p.y * 5.0 + iTime + float3(2.0, 0.0, 4.0));
+    float3 bleedColor = 0.5 + 0.5 * cos(p.y * 5.0 + timeVal + float3(2.0, 0.0, 4.0));
     col = mix(col, bleedColor * 0.3, bleed * dimensionBleed);
 }
-return float4(col, 1.0);
+
+// Reality fragments
+for (int i = 0; i < 10; i++) {
+    float fi = float(i);
+    float fragX = sin(fi * 1.5 + timeVal * 0.5) * 0.3;
+    float fragY = fract(fi * 0.35 + timeVal * 0.2) * 2.0 - 1.0;
+    float2 fragPos = float2(fragX + riftY, fragY);
+    float d = length(p - fragPos);
+    float frag = smoothstep(0.05, 0.02, d) * rift;
+    col += frag * edgeColor * 0.5;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edgeVis = abs(fract(riftDist * 10.0) - 0.5) * 2.0;
+    col = mix(col, edgeColor, smoothstep(0.4, 0.5, edgeVis) * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, edgeColor, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Neural Synapse
 let neuralSynapseCode = """
-// @param synapseCount "Liczba synaps" range(5, 20) default(10)
-// @param signalSpeed "Prędkość sygnału" range(0.5, 3.0) default(1.5)
-// @param dendriteBranching "Rozgałęzienia dendrytów" range(2, 6) default(4)
-// @param neurotransmitterDensity "Gęstość neuroprzekaźników" range(0.0, 1.0) default(0.5)
-// @param potentialThreshold "Próg potencjału" range(0.3, 0.8) default(0.5)
-// @toggle actionPotential "Potencjał czynnościowy" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param synapseCount "Synapse Count" range(5, 20) default(10)
+// @param signalSpeed "Signal Speed" range(0.5, 3.0) default(1.5)
+// @param dendriteBranching "Dendrite Branching" range(2, 6) default(4)
+// @param neurotransmitterDensity "Neurotransmitter Density" range(0.0, 1.0) default(0.5)
+// @param potentialThreshold "Potential Threshold" range(0.3, 0.8) default(0.5)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(1.0)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.8)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.3)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.8)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.5)
+// @toggle animated "Animated" default(true)
+// @toggle actionPotential "Action Potential" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 neuronColor1 = float3(color1R, color1G, color1B);
+float3 neuronColor2 = float3(color2R, color2G, color2B);
+
+// Dark background
 float3 col = float3(0.02, 0.03, 0.05);
+
+// Neural network with synapses
 for (int s = 0; s < 20; s++) {
     if (s >= int(synapseCount)) break;
     float fs = float(s);
+    
+    // Neuron positions
     float2 neuron1 = float2(
         sin(fs * 1.7) * 0.4 - 0.3,
         cos(fs * 2.3) * 0.4
@@ -501,21 +3291,31 @@ for (int s = 0; s < 20; s++) {
         sin(fs * 1.7 + 1.0) * 0.4 + 0.3,
         cos(fs * 2.3 + 1.0) * 0.4
     );
-    float2 synapseCenter = (neuron1 + neuron2) * 0.5;
+    
+    // Axon connection
     float2 dir = normalize(neuron2 - neuron1);
     float len = length(neuron2 - neuron1);
     float2 toP = p - neuron1;
     float t = clamp(dot(toP, dir) / len, 0.0, 1.0);
     float2 closest = neuron1 + dir * t * len;
     float d = length(p - closest);
+    
+    // Axon rendering
     float axon = smoothstep(0.015, 0.008, d);
-    col += axon * float3(0.2, 0.3, 0.4);
+    float3 axonColor = rainbow > 0.5 ? 
+        0.5 + 0.5 * cos(timeVal + fs * 0.5 + float3(0.0, 2.0, 4.0)) :
+        mix(neuronColor1, neuronColor2, t);
+    col += axon * axonColor * 0.5;
+    
+    // Action potential signal
     if (actionPotential > 0.5) {
-        float signal = fract(t - iTime * signalSpeed + fs * 0.2);
-        float potential = step(potentialThreshold, sin(iTime * 5.0 + fs * 2.0) * 0.5 + 0.5);
+        float signal = fract(t - timeVal * signalSpeed + fs * 0.2);
+        float potential = step(potentialThreshold, sin(timeVal * 5.0 + fs * 2.0) * 0.5 + 0.5);
         signal = smoothstep(0.0, 0.1, signal) * smoothstep(0.2, 0.1, signal);
-        col += axon * signal * potential * float3(0.5, 1.0, 0.8);
+        col += axon * signal * potential * neuronColor1 * 1.5;
     }
+    
+    // Dendrite branches
     for (int b = 0; b < 6; b++) {
         if (b >= int(dendriteBranching)) break;
         float fb = float(b);
@@ -530,159 +3330,1164 @@ for (int s = 0; s < 20; s++) {
         float bt = clamp(dot(toBranch, branchDir) / 0.1, 0.0, 1.0);
         float branchD = length(p - (branchStart + branchDir * bt * 0.1));
         float branch = smoothstep(0.008, 0.004, branchD);
-        col += branch * float3(0.15, 0.2, 0.3);
+        col += branch * neuronColor2 * 0.4;
     }
+    
+    // Neuron bodies
+    float n1Dist = length(p - neuron1);
+    float n2Dist = length(p - neuron2);
+    col += smoothstep(0.03, 0.02, n1Dist) * neuronColor1 * 0.8;
+    col += smoothstep(0.03, 0.02, n2Dist) * neuronColor2 * 0.8;
 }
+
+// Neurotransmitters
 if (neurotransmitterDensity > 0.0) {
     for (int n = 0; n < 50; n++) {
         float fn = float(n);
         float2 ntPos = float2(
-            fract(sin(fn * 127.1 + iTime * 0.5) * 43758.5453) * 2.0 - 1.0,
-            fract(sin(fn * 311.7 + iTime * 0.3) * 43758.5453) * 2.0 - 1.0
+            fract(sin(fn * 127.1 + timeVal * 0.5) * 43758.5453) * 2.0 - 1.0,
+            fract(sin(fn * 311.7 + timeVal * 0.3) * 43758.5453) * 2.0 - 1.0
         );
+        ntPos *= 0.5;
         float d = length(p - ntPos);
         float nt = smoothstep(0.01, 0.005, d) * neurotransmitterDensity;
-        col += nt * float3(0.3, 0.8, 0.5);
+        col += nt * neuronColor1 * 0.8;
     }
 }
-return float4(col, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    col += col * glowIntensity * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(length(p) * 5.0) - 0.5) * 2.0;
+    col = mix(col, neuronColor1, smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, neuronColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Data Visualization
 let dataVisualizationCode = """
-// @param barCount "Liczba słupków" range(5, 30) default(15)
-// @param dataSpeed "Prędkość danych" range(0.5, 3.0) default(1.0)
-// @param smoothness "Gładkość" range(0.0, 1.0) default(0.5)
-// @param colorScheme "Schemat kolorów" range(0.0, 6.28) default(0.0)
-// @param barWidth "Szerokość słupków" range(0.5, 0.95) default(0.8)
-// @toggle reflection "Odbicie" default(true)
-float2 p = uv;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param barCount "Bar Count" range(5, 30) default(15)
+// @param dataSpeed "Data Speed" range(0.5, 3.0) default(1.0)
+// @param smoothness "Smoothness" range(0.0, 1.0) default(0.5)
+// @param colorScheme "Color Scheme" range(0.0, 6.28) default(0.0)
+// @param barWidth "Bar Width" range(0.5, 0.95) default(0.8)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.3)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.7)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(1.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.2)
+// @toggle animated "Animated" default(true)
+// @toggle reflection "Reflection" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 dataColor1 = float3(color1R, color1G, color1B);
+float3 dataColor2 = float3(color2R, color2G, color2B);
+
+// Transform back to 0-1 space for bars
+float2 barP = p + float2(0.5);
+
+// Dark background
 float3 col = float3(0.05, 0.05, 0.08);
-float barW = 1.0 / float(barCount);
-int barIndex = int(p.x / barW);
+
+// Bar visualization
+float barW = 1.0 / float(int(barCount));
+int barIndex = int(barP.x / barW);
 float barX = (float(barIndex) + 0.5) * barW;
-float barLocalX = (p.x - float(barIndex) * barW) / barW;
-float hash = fract(sin(float(barIndex) * 127.1 + floor(iTime * dataSpeed) * 43.758) * 43758.5453);
-float nextHash = fract(sin(float(barIndex) * 127.1 + floor(iTime * dataSpeed + 1.0) * 43.758) * 43758.5453);
-float barHeight = mix(hash, nextHash, smoothstep(0.0, 1.0, fract(iTime * dataSpeed) * smoothness + (1.0 - smoothness) * step(0.5, fract(iTime * dataSpeed))));
+float barLocalX = (barP.x - float(barIndex) * barW) / barW;
+
+// Animated bar heights
+float hash = fract(sin(float(barIndex) * 127.1 + floor(timeVal * dataSpeed) * 43.758) * 43758.5453);
+float nextHash = fract(sin(float(barIndex) * 127.1 + floor(timeVal * dataSpeed + 1.0) * 43.758) * 43758.5453);
+float barHeight = mix(hash, nextHash, smoothstep(0.0, 1.0, fract(timeVal * dataSpeed) * smoothness + (1.0 - smoothness) * step(0.5, fract(timeVal * dataSpeed))));
 barHeight = barHeight * 0.7 + 0.1;
+
+// Bar mask
 float barMask = step(abs(barLocalX - 0.5), barWidth * 0.5);
-barMask *= step(p.y, barHeight);
-barMask *= step(0.0, p.y);
-float3 barColor = 0.5 + 0.5 * cos(float(barIndex) * 0.5 + colorScheme + float3(0.0, 2.0, 4.0));
+barMask *= step(barP.y, barHeight);
+barMask *= step(0.0, barP.y);
+
+// Bar color
+float3 barColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(float(barIndex) * 0.5 + colorScheme + timeVal + float3(0.0, 2.0, 4.0)) :
+    mix(dataColor1, dataColor2, float(barIndex) / float(int(barCount)));
+
 col = mix(col, barColor, barMask);
-float topGlow = smoothstep(0.02, 0.0, abs(p.y - barHeight)) * barMask;
-col += topGlow * float3(1.0) * 0.3;
+
+// Top glow
+float topGlow = smoothstep(0.02, 0.0, abs(barP.y - barHeight)) * barMask;
+col += topGlow * dataColor2 * 0.4;
+
+// Reflection
 if (reflection > 0.5) {
-    float refY = -p.y;
+    float refY = -barP.y;
     float refMask = step(abs(barLocalX - 0.5), barWidth * 0.5);
     refMask *= step(refY, barHeight);
     refMask *= step(0.0, refY);
-    refMask *= step(p.y, 0.0);
-    float refFade = 1.0 + p.y * 3.0;
+    refMask *= step(barP.y, 0.0);
+    float refFade = 1.0 + barP.y * 3.0;
     col += barColor * refMask * refFade * 0.3;
 }
-float grid = step(0.98, fract(p.y * 10.0));
+
+// Grid lines
+float grid = step(0.98, fract(barP.y * 10.0));
+grid += step(0.98, fract(barP.x * float(int(barCount))));
 col += grid * float3(0.1, 0.1, 0.15);
-return float4(col, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    col += barMask * barColor * glowIntensity * 0.2;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + barP.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(barP.x * float(int(barCount))) - 0.5) * 2.0;
+    col = mix(col, dataColor1, smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, dataColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Time Warp
 let timeWarpCode = """
-// @param warpIntensity "Intensywność zakrzywienia" range(0.0, 1.0) default(0.5)
-// @param spiralSpeed "Prędkość spirali" range(0.5, 3.0) default(1.0)
-// @param colorCycles "Cykle kolorów" range(1.0, 5.0) default(2.0)
-// @param centerPull "Przyciąganie środka" range(0.0, 1.0) default(0.3)
-// @param echoCount "Liczba ech" range(1, 5) default(3)
-// @toggle reverse "Odwróć" default(false)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param warpIntensity "Warp Intensity" range(0.0, 1.0) default(0.5)
+// @param spiralSpeed "Spiral Speed" range(0.5, 3.0) default(1.0)
+// @param colorCycles "Color Cycles" range(1.0, 5.0) default(2.0)
+// @param centerPull "Center Pull" range(0.0, 1.0) default(0.3)
+// @param echoCount "Echo Count" range(1, 5) default(3)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(1.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.8)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.5)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.3)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.8)
+// @toggle animated "Animated" default(true)
+// @toggle reverse "Reverse" default(false)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(true)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 warpColor1 = float3(color1R, color1G, color1B);
+float3 warpColor2 = float3(color2R, color2G, color2B);
+
+// Polar coordinates
 float r = length(p);
 float a = atan2(p.y, p.x);
+
+// Dark background
 float3 col = float3(0.02, 0.02, 0.05);
+
+// Direction control
 float direction = reverse > 0.5 ? -1.0 : 1.0;
-float timeOffset = iTime * spiralSpeed * direction;
+float timeOffset = timeVal * spiralSpeed * direction;
+
+// Time echoes
 for (int echo = 0; echo < 5; echo++) {
     if (echo >= int(echoCount)) break;
     float fe = float(echo);
     float echoDelay = fe * 0.3;
+    
+    // Warped coordinates
     float warpedR = r + sin(a * 3.0 + timeOffset - echoDelay) * warpIntensity * 0.2;
     warpedR += sin(r * 10.0 - timeOffset + echoDelay) * warpIntensity * 0.1;
     float warpedA = a + sin(r * 5.0 + timeOffset - echoDelay) * warpIntensity * 0.5;
     warpedA += centerPull * (1.0 - r) * sin(timeOffset);
+    
+    // Pattern
     float pattern = sin(warpedA * colorCycles + warpedR * 10.0 - timeOffset);
     pattern = pattern * 0.5 + 0.5;
-    float3 echoColor = 0.5 + 0.5 * cos(pattern * 6.28 + fe * 1.5 + float3(0.0, 2.0, 4.0));
+    
+    // Echo color
+    float3 echoColor = rainbow > 0.5 ?
+        0.5 + 0.5 * cos(pattern * 6.28 + fe * 1.5 + timeVal + float3(0.0, 2.0, 4.0)) :
+        mix(warpColor1, warpColor2, pattern);
+    
     float echoFade = 1.0 / (1.0 + fe * 0.5);
     col += echoColor * pattern * echoFade * 0.3;
 }
-float center = exp(-r * 3.0) * centerPull;
+
+// Center glow
+float centerVal = exp(-r * 3.0) * centerPull;
 float centerPulse = 0.5 + 0.5 * sin(timeOffset * 2.0);
-col += center * float3(1.0, 0.8, 0.5) * centerPulse;
+col += centerVal * warpColor1 * centerPulse;
+
+// Time trails
 float trail = sin(a * 10.0 - r * 20.0 + timeOffset * 3.0);
 trail = smoothstep(0.8, 1.0, trail) * (1.0 - r);
-col += trail * float3(0.3, 0.5, 0.8) * 0.3;
-return float4(col, 1.0);
+col += trail * warpColor2 * 0.4;
+
+// Glow effect
+if (glow > 0.5) {
+    col += centerVal * glowIntensity * warpColor1;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(r * 5.0) - 0.5) * 2.0;
+    col = mix(col, warpColor2, smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, warpColor1, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.8 + 0.2 * sin(timeVal * 3.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Pixel Sorting
 let pixelSortingCode = """
-// @param sortThreshold "Próg sortowania" range(0.0, 1.0) default(0.5)
-// @param sortDirection "Kierunek sortowania" range(0.0, 1.0) default(0.0)
-// @param glitchAmount "Ilość glitchy" range(0.0, 1.0) default(0.3)
-// @param colorBands "Pasma kolorów" range(2.0, 10.0) default(5.0)
-// @param animationSpeed "Prędkość animacji" range(0.0, 2.0) default(0.5)
-// @toggle vertical "Pionowy" default(false)
-float2 p = uv;
-if (vertical > 0.5) {
-    p = p.yx;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param sortThreshold "Sort Threshold" range(0.0, 1.0) default(0.5)
+// @param sortDirection "Sort Direction" range(0.0, 1.0) default(0.0)
+// @param glitchAmount "Glitch Amount" range(0.0, 1.0) default(0.3)
+// @param colorBands "Color Bands" range(2.0, 10.0) default(5.0)
+// @param animationSpeed "Animation Speed" range(0.0, 2.0) default(0.5)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.8)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.3)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.5)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.3)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.8)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.5)
+// @toggle animated "Animated" default(true)
+// @toggle vertical "Vertical" default(false)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(false)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(true)
+// @toggle noise "Noise" default(true)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
 }
-float3 col = float3(0.0);
-float3 baseColor = 0.5 + 0.5 * cos(uv.xyx * 3.0 + iTime * 0.5 + float3(0.0, 2.0, 4.0));
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 sortColor1 = float3(color1R, color1G, color1B);
+float3 sortColor2 = float3(color2R, color2G, color2B);
+
+// Vertical sort option
+float2 sortP = p + float2(0.5);
+if (vertical > 0.5) {
+    sortP = sortP.yx;
+}
+
+// Base color pattern
+float3 baseColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(sortP.xyx * 3.0 + timeVal * 0.5 + float3(0.0, 2.0, 4.0)) :
+    mix(sortColor1, sortColor2, sortP.y);
+
+// Luminance for sorting
 float luminance = dot(baseColor, float3(0.299, 0.587, 0.114));
-float threshold = sortThreshold + sin(iTime * animationSpeed + p.y * 5.0) * 0.1;
+
+// Animated threshold
+float threshold = sortThreshold + sin(timeVal * animationSpeed + sortP.y * 5.0) * 0.1;
 float sorted = step(threshold, luminance);
-float sortOffset = sorted * (p.x - threshold) * sortDirection;
-float2 sortedP = p;
-sortedP.x = fract(sortedP.x + sortOffset + iTime * animationSpeed * 0.1);
-float3 sortedColor = 0.5 + 0.5 * cos(sortedP.xyx * colorBands + float3(0.0, 2.0, 4.0));
-col = mix(baseColor, sortedColor, sorted * 0.7);
-float band = floor(p.y * colorBands) / colorBands;
-float bandColor = fract(band + iTime * animationSpeed * 0.2);
-col = mix(col, 0.5 + 0.5 * cos(bandColor * 6.28 + float3(0.0, 2.0, 4.0)), sorted * 0.3);
+
+// Sort offset
+float sortOffset = sorted * (sortP.x - threshold) * sortDirection;
+
+// Sorted coordinates
+float2 sortedP = sortP;
+sortedP.x = fract(sortedP.x + sortOffset + timeVal * animationSpeed * 0.1);
+
+// Sorted color
+float3 sortedColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(sortedP.xyx * colorBands + timeVal + float3(0.0, 2.0, 4.0)) :
+    mix(sortColor1, sortColor2, fract(sortedP.x * colorBands));
+
+// Combine
+float3 col = mix(baseColor, sortedColor, sorted * 0.7);
+
+// Color banding
+float band = floor(sortP.y * colorBands) / colorBands;
+float bandColor = fract(band + timeVal * animationSpeed * 0.2);
+float3 bandCol = 0.5 + 0.5 * cos(bandColor * 6.28 + float3(0.0, 2.0, 4.0));
+col = mix(col, bandCol, sorted * 0.3);
+
+// Glitch effect
 if (glitchAmount > 0.0) {
-    float glitchLine = step(0.98, fract(sin(floor(p.y * 50.0) * 43.758 + floor(iTime * 10.0)) * 43758.5453));
-    float glitchOffset = (fract(sin(floor(p.y * 50.0) * 127.1) * 43758.5453) - 0.5) * glitchAmount;
-    float2 glitchP = p;
+    float glitchLine = step(0.98, fract(sin(floor(sortP.y * 50.0) * 43.758 + floor(timeVal * 10.0)) * 43758.5453));
+    float glitchOffset = (fract(sin(floor(sortP.y * 50.0) * 127.1) * 43758.5453) - 0.5) * glitchAmount;
+    float2 glitchP = sortP;
     glitchP.x = fract(glitchP.x + glitchOffset * glitchLine);
     float3 glitchColor = 0.5 + 0.5 * cos(glitchP.xyx * 5.0 + float3(2.0, 0.0, 4.0));
     col = mix(col, glitchColor, glitchLine * glitchAmount);
 }
-return float4(col, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    col += sorted * sortColor1 * glowIntensity * 0.2;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + sortP.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(sortP.y * colorBands) - 0.5) * 2.0;
+    col = mix(col, sortColor1, smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, sortColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Morphing Geometry
 let morphingGeometryCode = """
-// @param shapeCount "Liczba kształtów" range(3, 8) default(5)
-// @param morphSpeed "Prędkość morfowania" range(0.2, 2.0) default(0.5)
-// @param blendSoftness "Miękkość mieszania" range(0.1, 0.5) default(0.2)
-// @param rotationSpeed "Prędkość rotacji" range(0.0, 2.0) default(0.3)
-// @param scaleOscillation "Oscylacja skali" range(0.0, 0.5) default(0.2)
-// @toggle fillShapes "Wypełnij kształty" default(true)
-float2 p = uv * 2.0 - 1.0;
-float angle = iTime * rotationSpeed;
-float c = cos(angle);
-float s = sin(angle);
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param shapeCount "Shape Count" range(3, 8) default(5)
+// @param morphSpeed "Morph Speed" range(0.2, 2.0) default(0.5)
+// @param blendSoftness "Blend Softness" range(0.1, 0.5) default(0.2)
+// @param rotationSpeedShape "Rotation Speed" range(0.0, 2.0) default(0.3)
+// @param scaleOscillation "Scale Oscillation" range(0.0, 0.5) default(0.2)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.7)
+// @param color1B "Color1 B" range(0.0, 1.0) default(1.0)
+// @param color2R "Color2 R" range(0.0, 1.0) default(1.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.7)
+// @toggle animated "Animated" default(true)
+// @toggle fillShapes "Fill Shapes" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(true)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 shapeColor1 = float3(color1R, color1G, color1B);
+float3 shapeColor2 = float3(color2R, color2G, color2B);
+
+// Shape rotation
+float shapeAngle = timeVal * rotationSpeedShape;
+float c = cos(shapeAngle);
+float s = sin(shapeAngle);
 p = float2(p.x * c - p.y * s, p.x * s + p.y * c);
-float scale = 1.0 + sin(iTime * 1.5) * scaleOscillation;
+
+// Scale oscillation
+float scale = 1.0 + sin(timeVal * 1.5) * scaleOscillation;
 p *= scale;
+
+// Background
 float3 col = float3(0.05, 0.05, 0.08);
-float morphPhase = fract(iTime * morphSpeed);
-int currentShape = int(floor(iTime * morphSpeed)) % int(shapeCount);
-int nextShape = (currentShape + 1) % int(shapeCount);
+
+// Morph phase
+float morphPhase = fract(timeVal * morphSpeed);
+int currentShape = int(fmod(floor(timeVal * morphSpeed), shapeCount));
+int nextShape = int(fmod(float(currentShape) + 1.0, shapeCount));
+
+// Calculate distances to shapes
 float currentDist = 10.0;
 float nextDist = 10.0;
 float r = length(p);
 float a = atan2(p.y, p.x);
+
+// Current shape
 if (currentShape == 0) {
     currentDist = r - 0.5;
 } else if (currentShape == 1) {
@@ -704,6 +4509,8 @@ if (currentShape == 0) {
 } else {
     currentDist = max(abs(p.x), abs(p.y)) - 0.4;
 }
+
+// Next shape
 if (nextShape == 0) {
     nextDist = r - 0.5;
 } else if (nextShape == 1) {
@@ -725,81 +4532,578 @@ if (nextShape == 0) {
 } else {
     nextDist = max(abs(p.x), abs(p.y)) - 0.4;
 }
+
+// Blend shapes
 float dist = mix(currentDist, nextDist, smoothstep(0.0, 1.0, morphPhase));
+
+// Shape rendering
 float shape;
 if (fillShapes > 0.5) {
     shape = smoothstep(blendSoftness, -blendSoftness, dist);
 } else {
     shape = smoothstep(blendSoftness, 0.0, abs(dist));
 }
-float3 shapeColor = 0.5 + 0.5 * cos(iTime + float(currentShape) + float3(0.0, 2.0, 4.0));
-col = mix(col, shapeColor, shape);
-float glow = exp(-abs(dist) * 5.0) * 0.5;
-col += glow * shapeColor;
-return float4(col, 1.0);
+
+// Shape color
+float3 currentShapeColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(timeVal + float(currentShape) + float3(0.0, 2.0, 4.0)) :
+    mix(shapeColor1, shapeColor2, morphPhase);
+
+col = mix(col, currentShapeColor, shape);
+
+// Glow effect
+if (glow > 0.5) {
+    float glowVal = exp(-abs(dist) * 5.0) * glowIntensity;
+    col += glowVal * currentShapeColor;
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = smoothstep(blendSoftness * 0.5, 0.0, abs(dist));
+    col = mix(col, shapeColor2, edge * 0.5);
+}
+
+// Radial effect
+if (radial > 0.5) {
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, shapeColor1, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Audio Spectrum
 let audioSpectrumCode = """
-// @param barCount "Liczba słupków" range(8, 64) default(32)
-// @param barSpacing "Odstępy słupków" range(0.0, 0.5) default(0.2)
-// @param reactivity "Reaktywność" range(0.5, 2.0) default(1.0)
-// @param peakHold "Trzymanie szczytów" range(0.0, 1.0) default(0.5)
-// @param glowAmount "Poświata" range(0.0, 1.0) default(0.3)
-// @toggle mirrored "Lustrzany" default(true)
-float2 p = uv;
-if (mirrored > 0.5) {
-    p.y = abs(p.y - 0.5) * 2.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param barCountSpectrum "Bar Count" range(8, 64) default(32)
+// @param barSpacing "Bar Spacing" range(0.0, 0.5) default(0.2)
+// @param reactivity "Reactivity" range(0.5, 2.0) default(1.0)
+// @param peakHold "Peak Hold" range(0.0, 1.0) default(0.5)
+// @param glowAmountSpectrum "Glow Amount" range(0.0, 1.0) default(0.3)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.0)
+// @param color1G "Color1 G" range(0.0, 1.0) default(1.0)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.5)
+// @param color2R "Color2 R" range(0.0, 1.0) default(1.0)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.0)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.3)
+// @toggle animated "Animated" default(true)
+// @toggle mirrored "Mirrored" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(true)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(true)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
 }
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 specColor1 = float3(color1R, color1G, color1B);
+float3 specColor2 = float3(color2R, color2G, color2B);
+
+// Transform back to 0-1 space
+float2 specP = p + float2(0.5);
+
+// Mirrored mode
+if (mirrored > 0.5) {
+    specP.y = abs(specP.y - 0.5) * 2.0;
+}
+
+// Background
 float3 col = float3(0.02, 0.02, 0.05);
-float barW = 1.0 / float(barCount);
-int barIndex = int(p.x / barW);
-float barLocalX = fract(p.x / barW);
-float freq = float(barIndex) / float(barCount);
-float amplitude = sin(freq * 10.0 + iTime * 3.0) * 0.3 + 0.3;
-amplitude += sin(freq * 5.0 - iTime * 2.0) * 0.2;
+
+// Bar calculations
+float barW = 1.0 / float(int(barCountSpectrum));
+int barIndex = int(specP.x / barW);
+float barLocalX = fract(specP.x / barW);
+float freq = float(barIndex) / float(int(barCountSpectrum));
+
+// Simulated audio amplitude
+float amplitude = sin(freq * 10.0 + timeVal * 3.0) * 0.3 + 0.3;
+amplitude += sin(freq * 5.0 - timeVal * 2.0) * 0.2;
+amplitude += sin(freq * 15.0 + timeVal * 5.0) * 0.1;
 amplitude *= reactivity;
 amplitude = clamp(amplitude, 0.0, 0.9);
+
+// Bar mask
 float barMask = step(barSpacing * 0.5, barLocalX) * step(barLocalX, 1.0 - barSpacing * 0.5);
-barMask *= step(p.y, amplitude);
-float3 barColor = mix(float3(0.0, 1.0, 0.5), float3(1.0, 0.5, 0.0), freq);
-barColor = mix(barColor, float3(1.0, 0.0, 0.3), step(0.7, p.y / amplitude));
+barMask *= step(specP.y, amplitude);
+
+// Bar color
+float3 barColor = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(freq * 6.28 + timeVal + float3(0.0, 2.0, 4.0)) :
+    mix(specColor1, specColor2, freq);
+    
+// Hot color at peaks
+barColor = mix(barColor, specColor2 * 1.5, step(0.7, specP.y / max(amplitude, 0.01)));
+
 col = mix(col, barColor, barMask);
+
+// Peak hold indicator
 if (peakHold > 0.0) {
     float peakY = amplitude + 0.02;
-    float peak = smoothstep(0.01, 0.0, abs(p.y - peakY)) * barMask;
+    float peak = smoothstep(0.01, 0.0, abs(specP.y - peakY)) * barMask;
     col += peak * float3(1.0) * peakHold;
 }
-if (glowAmount > 0.0) {
-    float glow = barMask * glowAmount * 0.5;
-    col += glow * barColor;
+
+// Bar glow
+if (glow > 0.5 && glowAmountSpectrum > 0.0) {
+    float glowVal = barMask * glowAmountSpectrum * glowIntensity * 0.5;
+    col += glowVal * barColor;
 }
-float grid = step(0.99, fract(p.y * 20.0)) * 0.1;
+
+// Grid overlay
+float grid = step(0.99, fract(specP.y * 20.0)) * 0.1;
+grid += step(0.99, fract(specP.x * float(int(barCountSpectrum)))) * 0.05;
 col += grid * float3(0.2, 0.2, 0.3);
-return float4(col, 1.0);
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + specP.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(specP.y * 10.0) - 0.5) * 2.0;
+    col = mix(col, specColor1, smoothstep(0.4, 0.5, edge) * 0.2);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, specColor2, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Fractal Tree Advanced
 let fractalTreeAdvancedCode = """
-// @param branchDepth "Głębokość gałęzi" range(3, 10) default(7)
-// @param branchAngle "Kąt gałęzi" range(0.2, 0.8) default(0.4)
-// @param branchRatio "Stosunek gałęzi" range(0.5, 0.8) default(0.67)
-// @param windSpeed "Prędkość wiatru" range(0.0, 1.0) default(0.2)
-// @param leafDensity "Gęstość liści" range(0.0, 1.0) default(0.5)
-// @toggle autumn "Jesień" default(false)
-float2 p = uv;
-p.x = p.x * 2.0 - 1.0;
-p.y = 1.0 - p.y;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param branchDepth "Branch Depth" range(3, 10) default(7)
+// @param branchAngle "Branch Angle" range(0.2, 0.8) default(0.4)
+// @param branchRatio "Branch Ratio" range(0.5, 0.8) default(0.67)
+// @param windSpeed "Wind Speed" range(0.0, 1.0) default(0.2)
+// @param leafDensity "Leaf Density" range(0.0, 1.0) default(0.5)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.3)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.2)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.1)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.2)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.2)
+// @toggle animated "Animated" default(true)
+// @toggle autumn "Autumn" default(false)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(false)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(true)
+// @toggle radial "Radial" default(false)
+// @toggle glow "Glow" default(false)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(false)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Kaleidoscope
+if (kaleidoscope > 0.5) {
+    float angle = atan2(p.y, p.x);
+    float radius = length(p);
+    angle = fmod(angle, 0.523599) - 0.261799;
+    p = float2(cos(angle), sin(angle)) * radius;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 trunkColor = float3(color1R, color1G, color1B);
+float3 leafColor = float3(color2R, color2G, color2B);
+
+// Adjust to tree coordinate space
+p.y = -p.y + 0.3;
+
+// Background (sky)
 float3 col = float3(0.6, 0.8, 0.95);
-float3 trunkColor = float3(0.3, 0.2, 0.1);
-float3 leafColor = autumn > 0.5 ? float3(0.9, 0.4, 0.1) : float3(0.2, 0.5, 0.2);
+
+// Rainbow or autumn colors
+if (rainbow > 0.5) {
+    leafColor = 0.5 + 0.5 * cos(timeVal + p.y * 3.0 + float3(0.0, 2.0, 4.0));
+} else if (autumn > 0.5) {
+    leafColor = float3(0.9, 0.4, 0.1);
+}
+
+// Tree variables
 float tree = 0.0;
 float leaves = 0.0;
-float wind = sin(iTime * windSpeed * 2.0) * windSpeed;
-float2 pos = float2(0.0, 0.0);
-float angle = 1.5708;
-float len = 0.25;
+float wind = sin(timeVal * windSpeed * 2.0) * windSpeed;
 float thickness = 0.02;
+
+// Draw fractal tree branches
 for (int depth = 0; depth < 10; depth++) {
     if (depth >= int(branchDepth)) break;
     float fd = float(depth);
@@ -835,44 +5139,426 @@ for (int depth = 0; depth < 10; depth++) {
         }
     }
 }
+
+// Apply tree and leaves
 col = mix(col, trunkColor, tree);
 col = mix(col, leafColor, leaves);
-return float4(col, 1.0);
+
+// Glow effect
+if (glow > 0.5) {
+    col += leaves * glowIntensity * leafColor * 0.3;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    float r = length(p);
+    col *= 1.0 + (0.5 - r) * 0.3;
+}
+
+// Gradient overlay (sky gradient)
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + (uv.y - 0.5) * 0.4), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(tree - leaves);
+    col = mix(col, float3(1.0), edge * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, trunkColor * 0.5, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.9 + 0.1 * sin(timeVal * 2.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.95 + 0.05 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.1;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.05;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.95 + 0.05 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 5.0;
+    col.b *= 1.0 - chromaticAmount * 5.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
 /// Kaleidoscope Advanced
 let kaleidoscopeAdvancedCode = """
-// @param segments "Segmenty" range(3, 16) default(8)
-// @param rotationSpeed "Prędkość rotacji" range(0.0, 2.0) default(0.5)
-// @param zoomSpeed "Prędkość zoomu" range(0.0, 1.0) default(0.3)
-// @param colorCycles "Cykle kolorów" range(1.0, 5.0) default(2.0)
-// @param patternComplexity "Złożoność wzoru" range(1.0, 5.0) default(3.0)
-// @toggle animate "Animuj" default(true)
-float2 p = uv * 2.0 - 1.0;
+// @param masterOpacity "Master Opacity" range(0.0, 1.0) default(1.0)
+// @param speed "Speed" range(0.0, 3.0) default(1.0)
+// @param segments "Segments" range(3, 16) default(8)
+// @param rotationSpeedKal "Rotation Speed" range(0.0, 2.0) default(0.5)
+// @param zoomSpeed "Zoom Speed" range(0.0, 1.0) default(0.3)
+// @param colorCyclesKal "Color Cycles" range(1.0, 5.0) default(2.0)
+// @param patternComplexity "Pattern Complexity" range(1.0, 5.0) default(3.0)
+// @param brightness "Brightness" range(0.0, 2.0) default(1.0)
+// @param contrast "Contrast" range(0.0, 2.0) default(1.0)
+// @param colorSaturation "Saturation" range(0.0, 2.0) default(1.0)
+// @param centerX "Center X" range(-1.0, 1.0) default(0.0)
+// @param centerY "Center Y" range(-1.0, 1.0) default(0.0)
+// @param zoom "Zoom" range(0.1, 3.0) default(1.0)
+// @param rotation "Rotation" range(0.0, 6.28318) default(0.0)
+// @param distortion "Distortion" range(0.0, 1.0) default(0.0)
+// @param noiseAmount "Noise" range(0.0, 1.0) default(0.0)
+// @param pixelSize "Pixel Size" range(1.0, 64.0) default(1.0)
+// @param vignetteSize "Vignette" range(0.0, 1.0) default(0.0)
+// @param chromaticAmount "Chromatic" range(0.0, 0.1) default(0.0)
+// @param scanlineIntensity "Scanlines" range(0.0, 1.0) default(0.0)
+// @param glowIntensity "Glow Intensity" range(0.0, 2.0) default(0.5)
+// @param bloomThreshold "Bloom Threshold" range(0.0, 1.0) default(0.5)
+// @param bloomIntensity "Bloom Intensity" range(0.0, 2.0) default(0.5)
+// @param shadowIntensity "Shadow" range(0.0, 1.0) default(0.0)
+// @param highlightIntensity "Highlight" range(0.0, 1.0) default(0.0)
+// @param colorBalance "Color Balance" range(-1.0, 1.0) default(0.0)
+// @param gamma "Gamma" range(0.2, 2.2) default(1.0)
+// @param hueShift "Hue Shift" range(0.0, 6.28318) default(0.0)
+// @param color1R "Color1 R" range(0.0, 1.0) default(0.5)
+// @param color1G "Color1 G" range(0.0, 1.0) default(0.3)
+// @param color1B "Color1 B" range(0.0, 1.0) default(0.8)
+// @param color2R "Color2 R" range(0.0, 1.0) default(0.8)
+// @param color2G "Color2 G" range(0.0, 1.0) default(0.5)
+// @param color2B "Color2 B" range(0.0, 1.0) default(0.3)
+// @toggle animated "Animated" default(true)
+// @toggle animate "Animate" default(true)
+// @toggle rainbow "Rainbow" default(false)
+// @toggle mirror "Mirror" default(true)
+// @toggle showEdges "Edges" default(false)
+// @toggle gradient "Gradient" default(false)
+// @toggle radial "Radial" default(true)
+// @toggle glow "Glow" default(true)
+// @toggle pulse "Pulse" default(false)
+// @toggle flicker "Flicker" default(false)
+// @toggle noise "Noise" default(false)
+// @toggle vignette "Vignette" default(false)
+// @toggle invert "Invert" default(false)
+// @toggle chromatic "Chromatic" default(false)
+// @toggle scanlines "Scanlines" default(false)
+// @toggle pixelate "Pixelate" default(false)
+// @toggle kaleidoscope "Kaleidoscope" default(true)
+// @toggle bloom "Bloom" default(false)
+// @toggle filmGrain "Film Grain" default(false)
+// @toggle colorShift "Color Shift" default(false)
+// @toggle outline "Outline" default(false)
+// @toggle smooth "Smooth" default(true)
+// @toggle neon "Neon" default(false)
+// @toggle pastel "Pastel" default(false)
+// @toggle highContrast "High Contrast" default(false)
+// Time calculation
+float timeVal = animated > 0.5 ? iTime * speed : 0.0;
+
+// Coordinate setup
+float2 center = float2(0.5 + centerX, 0.5 + centerY);
+float2 p = (uv - center) / zoom;
+
+// Rotation
+float cosR = cos(rotation);
+float sinR = sin(rotation);
+p = float2(p.x * cosR - p.y * sinR, p.x * sinR + p.y * cosR);
+
+// Mirror effect
+if (mirror > 0.5) {
+    p = abs(p);
+}
+
+// Pixelate
+if (pixelate > 0.5) {
+    p = floor(p * pixelSize) / pixelSize;
+}
+
+// Distortion
+if (distortion > 0.0) {
+    p += sin(p.yx * 10.0 + timeVal) * distortion * 0.1;
+}
+
+// Colors from params
+float3 kalColor1 = float3(color1R, color1G, color1B);
+float3 kalColor2 = float3(color2R, color2G, color2B);
+
+// Polar coordinates
 float r = length(p);
 float a = atan2(p.y, p.x);
+
+// Animate rotation
 if (animate > 0.5) {
-    a += iTime * rotationSpeed;
+    a += timeVal * rotationSpeedKal;
 }
-float segmentAngle = 6.28318 / float(segments);
-a = fmod(a + segmentAngle * 0.5, segmentAngle) - segmentAngle * 0.5;
-a = abs(a);
+
+// Kaleidoscope effect
+if (kaleidoscope > 0.5) {
+    float segmentAngle = 6.28318 / float(int(segments));
+    a = fmod(a + segmentAngle * 0.5, segmentAngle) - segmentAngle * 0.5;
+    a = abs(a);
+}
+
+// Kaleidoscope coordinates
 float2 kp = float2(cos(a), sin(a)) * r;
+
+// Zoom animation
 if (animate > 0.5) {
-    float zoom = 1.0 + sin(iTime * zoomSpeed) * 0.3;
-    kp *= zoom;
+    float zoomAnim = 1.0 + sin(timeVal * zoomSpeed) * 0.3;
+    kp *= zoomAnim;
 }
-float3 col = float3(0.0);
-float pattern1 = sin(kp.x * patternComplexity * 10.0 + iTime) * sin(kp.y * patternComplexity * 8.0 + iTime * 0.7);
-float pattern2 = sin(length(kp) * patternComplexity * 15.0 - iTime * 1.5);
-float pattern3 = sin(atan2(kp.y, kp.x) * patternComplexity * 3.0 + iTime * 0.5);
+
+// Pattern generation
+float pattern1 = sin(kp.x * patternComplexity * 10.0 + timeVal) * sin(kp.y * patternComplexity * 8.0 + timeVal * 0.7);
+float pattern2 = sin(length(kp) * patternComplexity * 15.0 - timeVal * 1.5);
+float pattern3 = sin(atan2(kp.y, kp.x) * patternComplexity * 3.0 + timeVal * 0.5);
 float combined = (pattern1 + pattern2 + pattern3) / 3.0;
 combined = combined * 0.5 + 0.5;
-col = 0.5 + 0.5 * cos(combined * colorCycles * 6.28 + float3(0.0, 2.0, 4.0));
-float mandala = smoothstep(0.5, 0.48, fract(r * 5.0 - iTime * 0.2));
+
+// Color
+float3 col = rainbow > 0.5 ?
+    0.5 + 0.5 * cos(combined * colorCyclesKal * 6.28 + timeVal + float3(0.0, 2.0, 4.0)) :
+    mix(kalColor1, kalColor2, combined);
+
+// Mandala rings
+float mandala = smoothstep(0.5, 0.48, fract(r * 5.0 - timeVal * 0.2));
 col = mix(col, col * 1.3, mandala * 0.3);
-float center = exp(-r * 3.0);
-col = mix(col, float3(1.0), center * 0.3);
-return float4(col, 1.0);
+
+// Center glow
+float centerVal = exp(-r * 3.0);
+col = mix(col, float3(1.0), centerVal * 0.3);
+
+// Glow effect
+if (glow > 0.5) {
+    col += centerVal * glowIntensity * kalColor1;
+}
+
+// Radial effect
+if (radial > 0.5) {
+    col *= 1.0 + (0.5 - r) * 0.5;
+}
+
+// Gradient overlay
+if (gradient > 0.5) {
+    col = mix(col, col * (1.0 + p.y * 0.3), 0.5);
+}
+
+// Show edges
+if (showEdges > 0.5) {
+    float edge = abs(fract(a * float(int(segments)) / 6.28318) - 0.5) * 2.0;
+    col = mix(col, kalColor2, smoothstep(0.4, 0.5, edge) * 0.3);
+}
+
+// Outline effect
+if (outline > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    float edgeVal = length(float2(dfdx(lum), dfdy(lum)));
+    col = mix(col, kalColor1, smoothstep(0.0, 0.1, edgeVal));
+}
+
+// Pulse effect
+if (pulse > 0.5) {
+    col *= 0.85 + 0.15 * sin(timeVal * 4.0);
+}
+
+// Flicker effect
+if (flicker > 0.5) {
+    float flick = fract(sin(floor(timeVal * 25.0) * 43.758) * 43758.5453);
+    col *= 0.9 + 0.1 * flick;
+}
+
+// Bloom effect
+if (bloom > 0.5) {
+    float lum = dot(col, float3(0.299, 0.587, 0.114));
+    if (lum > bloomThreshold) {
+        col += (col - bloomThreshold) * bloomIntensity;
+    }
+}
+
+// Color shift
+if (colorShift > 0.5) {
+    col.rgb = col.gbr * 0.5 + col.rgb * 0.5;
+}
+
+// Noise effect
+if (noise > 0.5) {
+    float n = fract(sin(dot(uv * 100.0 + timeVal, float2(12.9898, 78.233))) * 43758.5453);
+    col += (n - 0.5) * noiseAmount * 0.15;
+}
+
+// Film grain
+if (filmGrain > 0.5) {
+    float grain = fract(sin(dot(uv * 100.0 + iTime, float2(12.9898, 78.233))) * 43758.5453);
+    col += (grain - 0.5) * 0.08;
+}
+
+// Scanlines
+if (scanlines > 0.5) {
+    col *= 0.9 + 0.1 * sin(uv.y * 500.0 * scanlineIntensity);
+}
+
+// Chromatic aberration
+if (chromatic > 0.5) {
+    col.r *= 1.0 + chromaticAmount * 8.0;
+    col.b *= 1.0 - chromaticAmount * 8.0;
+}
+
+// Shadow and highlight
+col = mix(col, col * col, shadowIntensity);
+col = mix(col, sqrt(col), highlightIntensity);
+
+// Color balance
+col.r *= 1.0 + colorBalance * 0.5;
+col.b *= 1.0 - colorBalance * 0.5;
+
+// Saturation
+float gray = dot(col, float3(0.299, 0.587, 0.114));
+col = mix(float3(gray), col, colorSaturation);
+
+// Hue shift
+if (hueShift > 0.0) {
+    float cosH = cos(hueShift);
+    float sinH = sin(hueShift);
+    col = float3(
+        col.r * cosH + col.g * sinH * 0.5,
+        col.g * cosH - col.r * sinH * 0.5,
+        col.b
+    );
+}
+
+// Contrast and brightness
+col = (col - 0.5) * contrast + 0.5;
+col *= brightness;
+
+// Gamma
+col = pow(max(col, float3(0.0)), float3(1.0 / gamma));
+
+// Neon
+if (neon > 0.5) {
+    col = pow(max(col, float3(0.0)), float3(0.6)) * 1.5;
+}
+
+// Pastel
+if (pastel > 0.5) {
+    col = mix(col, float3(1.0), 0.3);
+}
+
+// High contrast
+if (highContrast > 0.5) {
+    col = smoothstep(0.2, 0.8, col);
+}
+
+// Invert
+if (invert > 0.5) {
+    col = 1.0 - col;
+}
+
+// Vignette
+if (vignette > 0.5) {
+    float vig = 1.0 - length(uv - 0.5) * vignetteSize * 2.0;
+    col *= max(vig, 0.0);
+}
+
+// Smooth
+if (smooth > 0.5) {
+    col = clamp(col, 0.0, 1.0);
+}
+
+col *= masterOpacity;
+return float4(col, masterOpacity);
 """
 
