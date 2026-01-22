@@ -437,6 +437,14 @@ struct ThumbnailMetalView: UIViewRepresentable {
                 // Cache'uj pipeline (thread-safe)
                 SharedMetalResources.setCachedPipeline(newPipeline, for: shaderCode)
             } catch {
+                print("❌ [ShaderListView] SHADER COMPILATION FAILED!")
+                print("❌ Error: \(error.localizedDescription)")
+                print("❌ ===== FULL GENERATED SHADER =====")
+                let lines = fullShader.components(separatedBy: "\n")
+                for (index, line) in lines.enumerated() {
+                    print("\(String(format: "%3d", index + 1)): \(line)")
+                }
+                print("❌ ===== END OF SHADER =====")
                 createFallbackPipeline()
             }
         }

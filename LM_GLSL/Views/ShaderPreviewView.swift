@@ -605,7 +605,18 @@ struct MetalShaderView: UIViewRepresentable {
                 // OPTYMALIZACJA: Cache'uj nowy pipeline (SharedMetalResources - thread-safe)
                 SharedMetalResources.setCachedPipeline(newPipeline, for: shaderCode)
             } catch {
-                print("Failed to create pipeline state: \(error)")
+                print("❌ SHADER COMPILATION FAILED!")
+                print("❌ Error: \(error.localizedDescription)")
+                if let mtlError = error as? MTLLibraryError {
+                    print("❌ MTLLibraryError code: \(mtlError.errorCode)")
+                }
+                // Print full shader for debugging
+                print("❌ ===== FULL GENERATED SHADER =====")
+                let lines = fullShader.components(separatedBy: "\n")
+                for (index, line) in lines.enumerated() {
+                    print("\(String(format: "%3d", index + 1)): \(line)")
+                }
+                print("❌ ===== END OF SHADER =====")
                 createFallbackPipeline()
             }
         }
